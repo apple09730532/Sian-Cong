@@ -1,0 +1,19 @@
+import numpyas np
+>>> import pandas as pd
+>>> import pandas.io.dataas web
+>>> STOCK = web.DataReader(name = 'RTS.RS',data_source= 'yahoo',start='1990-01-01')
+>>> para1 = 20
+>>> para2 = 60
+>>> STOCK['ShortMA'] = pd.rolling_mean(STOCK['AdjClose'],window = para1)
+>>> STOCK['LongMA'] = pd.rolling_mean(STOCK['AdjClose'],window = para2)
+>>> STOCK['Market'] = np.log(STOCK['AdjClose']/STOCK['AdjClose'].shift(1))
+>>> STOCK['diff'] = STOCK['ShortMA'] -STOCK['LongMA']
+>>> STOCK['Signal'] = np.where(STOCK['diff']>0,1,0)
+>>> STOCK['Signal'] = np.where(STOCK['diff']<0,-1,STOCK['Signal'])
+>>> STOCK['Strategy'] = STOCK['Signal'].shift(1)*STOCK['Market']
+>>> STOCK['EC'] = STOCK['Strategy'].cumsum().apply(np.exp)*100-100
+>>> STOCK['BuyHold'] = STOCK['Market'].cumsum().apply(np.exp)*100-100
+>>> STOCK['EC'].plot()
+<matplotlib.axes._subplots.AxesSubplotobject at 0x000000000A6414A8>
+>>> STOCK['BuyHold'].plot()
+<matplotlib.axes._subplots.AxesSubplotobject at 0x000000000A6414A8>
