@@ -1,0 +1,5 @@
+from pandas.stats.api import ols
+import pandas as pd
+df=pd.DataFrame({"A": [10,20,30,40,50],"B": [20,30,10,40,50],"C": [32,234,123,567,2222]})
+res=ols(y=df['A'],x=df['B'])
+print res
