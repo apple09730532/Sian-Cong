@@ -7,3 +7,14 @@ for item in soup.select('.tab_tr_item'):
     C.append(item.text)
     print (item.text)
     
+import numpy as np
+from scipy import stats
+S0 = 100
+K = 105
+r = 0.02
+T = 1
+sigma = 0.1
+d1 = (np.log(S0/K) + (r + 0.5 * sigma**2) * T)/ (sigma * np.sqrt(T))
+d2 = (np.log(S0/K) + (r -0.5 * sigma**2) * T)/ (sigma * np.sqrt(T))
+C0 = S0 * stats.norm.cdf(d1 , 0.0 , 1.0) -K *np.exp(-r * T) * stats.norm.cdf(d2 , 0.0 , 1.0)
+P0 = C0 -S0 + K*np.exp(-r * T)
