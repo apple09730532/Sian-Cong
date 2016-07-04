@@ -1,0 +1,9 @@
+import requests
+from bs4 import BeautifulSoup
+res=requests.get("http://pv.energytrend.com.tw/pricequotes.html")
+soup= BeautifulSoup(res.text, "html.parser")
+C=[]
+for item in soup.select('.tab_tr_item'):
+    C.append(item.text)
+    print (item.text)
+    
