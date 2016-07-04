@@ -6,7 +6,7 @@ C=[]
 for item in soup.select('.tab_tr_item'):
     C.append(item.text)
     print (item.text)
-    
+    @@
 import numpy as np
 from scipy import stats
 S0 = 100
@@ -18,3 +18,46 @@ d1 = (np.log(S0/K) + (r + 0.5 * sigma**2) * T)/ (sigma * np.sqrt(T))
 d2 = (np.log(S0/K) + (r -0.5 * sigma**2) * T)/ (sigma * np.sqrt(T))
 C0 = S0 * stats.norm.cdf(d1 , 0.0 , 1.0) -K *np.exp(-r * T) * stats.norm.cdf(d2 , 0.0 , 1.0)
 P0 = C0 -S0 + K*np.exp(-r * T)
+@@
+import xlrd as xr
+import xlwt as xw
+import datetime
+import requests
+from bs4 import BeautifulSoup
+wb = xw.Workbook()
+ws = wb.add_sheet('A Test Sheet')
+res=requests.get("http://pv.energytrend.com.tw/pricequotes.html")
+soup= BeautifulSoup(res.text, "html.parser")
+
+data = xr.open_workbook('太陽能價格表.xls')
+table = data.sheet_by_index(0)
+nrows = table.nrows
+date= table.cell(nrows-1,0).value
+
+loli2 = datetime.date.today()
+x2=datetime.date.isoformat(loli2)
+C=[]
+for item in soup.select('.tab_tr_item'):
+    C.append(item.text)
+B=[]
+for item in soup.select('.tab_tr_price'):
+    B.append(item.text)
+A = []
+for item in soup.select('.tab_title'):
+    A.append(item.text)
+polysi=[]
+items=[]
+for j in range(0,10):
+    for i in range(0,4): 
+        polysi.append(B[5*j+i])
+        items.append(A[i+1])
+if x2 != date:
+    
+    file = xw.Workbook() #Work的W是大寫 
+    table = file.add_sheet('solar industry2',cell_overwrite_ok=True) #對同個儲存格可複寫的sheet
+    for k in range (0,len(category)):
+        table.write(0,1+4*k,category[k])
+
+    for i in range (0,len(polysi)): 
+        table.write(nrows,1+i,polysi[i])    
+    file.save('太陽能價格表.xls') #儲存為excel
