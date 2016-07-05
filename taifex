@@ -1,0 +1,39 @@
+import requests
+import pandas
+import bs4
+import csv
+def getData(date):
+    data = {
+    "datestart":date
+    }
+    page=requests.post("http://www.taifex.com.tw/chinese/3/7_12_1.asp",data=data)
+    page.encoding="utf8"
+    soup = bs4.BeautifulSoup(page.text,'lxml')
+    table1 = soup('table',{"class":"table_f"})[0]
+    table2 = soup('table',{"class":"table_c"})[0]
+    table1 = pandas.read_html(table1.decode())[0]
+    table2 = pandas.read_html(table2.decode())[0]
+    #加一欄日期
+    table1["date"] = date
+    table2["date"] = date
+    #加一欄類別
+    table1["type"] = "table1"
+    table2["type"] = "table2"
+    #只取外資
+    table1 = table1.loc[5][["date","type",1,2,3,4,5,6]].to_dict()
+    table2 = table2.loc[5][["date","type",1,2,3,4,5,6]].to_dict()
+    return [table1,table2]
+    
+
+results = []
+targets = ["2016/7/1","2016/7/5"]
+
+for target in targets:
+    results.extend(getData(target))
+
+with open('output.txt', 'w') as csvfile:
+    fieldnames = ["date","type",0,1,2,3,4,5,6]
+    writer = csv.DictWriter(csvfile,delimiter=':', fieldnames=fieldnames)
+    writer.writeheader()
+    for row in results:
+        writer.writerow(row)
