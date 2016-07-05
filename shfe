@@ -1,0 +1,2 @@
+date = "20160701"
+requests.get("http://www.shfe.com.cn/data/dailydata/kx/kx"+date+".dat").json()
