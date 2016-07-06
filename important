@@ -1,0 +1,78 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Wed Jul 06 22:10:08 2016
+
+@author: AsusPro33s
+"""
+import requests
+import datetime
+import time
+import sys
+import pandas as pd
+
+def make_date_range(start,end):
+    start,end = datetime.datetime.strptime(start,"%Y-%m-%d").date() , datetime.datetime.strptime(end,"%Y-%m-%d").date()
+    dates,count = [],0
+    while True:
+        thisDay = start + datetime.timedelta(days=+count)
+        dates.append(thisDay)
+        if thisDay >= end:
+            break
+        else:
+            count += 1
+    return map(lambda date:date.strftime("%Y%m%d"),dates)
+
+def getDayData(date):
+    try:
+        #Set Parameters
+        params={
+
+            "tradeDate":date,
+        }
+        headers = {"Referer":"http://www.sse.com.cn/assortment/options/disclo/tradeinfo/"}
+        #Set Headers
+        response = requests.get("http://query.sse.com.cn/security/warrant/queryFormalOverviewActiveData.do",params=params,headers=headers).json()
+        #Has Data or not?
+        if len(response["result"]) == 0:
+            return None
+        else:
+            return response["result"][0]
+    except:
+        return False
+
+if __name__ == "__main__":
+    start,end = sys.argv[1],sys.argv[2]
+    print "Retrieve data from",start,"to",end,'.'
+    jobs_tracker = dict.fromkeys(make_date_range(start,end),0)
+    results = []
+    while True:
+        print "\nJobs:",jobs_tracker
+        currentJobs = filter(lambda job:job[1] is not True and job[1] < 30, jobs_tracker.items())
+        currentJobs = map(lambda x:x[0],currentJobs)
+        # If there is no job in currentJobs (all jobs are done or exceeded try limit) ,then break.
+        if len(currentJobs) == 0:
+            break
+        #Do Job
+        for date in currentJobs:
+            print "Retrieving:",date
+            result = getDayData(date)
+            if result is False: #Exception happen, adding try count. 
+                jobs_tracker[date] += 1
+            else:               #Receive data successfully or there is no data at that day.
+                if result is not None: #If that day has data, then add into results
+                    results.extend(result)#20160706
+                jobs_tracker[date] = True
+            time.sleep(1)
+    
+#把 MEMBER_VOLUME 和 SECURITY_VOLUME 轉為 float
+df = pd.DataFrame(results)
+df["MEMBER_VOLUME"] = df["MEMBER_VOLUME"].str.split(',').str.join('')
+df["MEMBER_VOLUME"] = df["MEMBER_VOLUME"].astype(float)
+df["SECURITY_VOLUME"] = df["SECURITY_VOLUME"].str.split(',').str.join('')
+df["SECURITY_VOLUME"] = df["SECURITY_VOLUME"].astype(float)
+#計算：MEMBER_VOLUME / SECURITY_VOLUME
+df["calculation"] = df["MEMBER_VOLUME"] / df["SECURITY_VOLUME"]
+#如果該列全部都是 None 就移除
+df.dropna(how="all",inplace=True)
+#輸出成 excel
+df.to_excel("output.xls",index=False)
