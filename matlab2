@@ -1,0 +1,121 @@
+clear 
+clc
+format long;
+
+disp(' ')
+disp('---------------------------------------------------------------------')
+disp('HW2.m')
+disp('---------------------------------------------------------------------')
+disp(' ')
+z=xlsread('台灣50日周月收盤',3);
+z1=z(:,19);
+z2=z(:,20);
+
+[h1(1),pVal1(1)] = adftest(z1,'model','ARD'); 
+[h0(1),pVal0(1)] = kpsstest(z1,'trend',false); 
+
+[h1(2),pVal1(2)] = adftest(z2,'model','ARD'); 
+[h0(2),pVal0(2)] = kpsstest(z2,'trend',false);
+
+
+[h1d(1),pVal1d(1)] = adftest(diff(z1),'model','ARD'); 
+[h0d(1),pVal0d(1)] = kpsstest(diff(z1),'trend',false);  
+
+[h1d(2),pVal1d(2)] = adftest(diff(z2),'model','ARD'); 
+[h0d(2),pVal0d(2)] = kpsstest(diff(z2),'trend',false);
+
+
+[hEGm, pValEGm] = egcitest([z1 z2],'test',{'t1','t2'});
+
+[~,~,~,~,reg] = egcitest([z1 z2]);
+%x=reg.res;
+%[ACF,ACFLags,ACFBounds] = autocorr(x,50);
+%subplot(2,1,1);autocorr(x,50);
+%Calculating PACF
+%[PACF,PACFLags,PACFBounds] = parcorr(x,50);
+%subplot(2,1,2);parcorr(x,50);
+
+ %Ljung-Box Q test
+
+%[H(1),pValue(1),Qstat(1),CriticalValue(1)] = lbqtest(x,8);
+%[H(2),pValue(2),Qstat(2),CriticalValue(2)] = lbqtest(x,16);
+%[H(3),pValue(3),Qstat(3),CriticalValue(3)] = lbqtest(x,24);
+%model =arima('ARLags',[1 4]);
+%model.Variance = egarch(1,1);
+%[AR4.fit, AR4.VarCov, AR4.LogL, AR4.info]  = estimate(model,x);
+%AR4.res = infer(AR4.fit, x);
+%[AR4.H, AR4.pValue, AR4.Qstat, AR4.CriticalValue] = lbqtest(AR4.res,24);
+%[AR4.aic, AR4.bic] = aicbic(AR4.LogL, 3+1+1+2, 2481);
+ 
+y=0;
+buycost=0;
+payoff(1:999)=0;
+%xf(1:1000)=0;
+%xfmse(1:1000)=0;
+
+for i=1000:1250
+x=reg.res(1:i);
+model =arima('ARLags',[1 4]);
+model.Variance = egarch(1,1);
+[AR4.fit, AR4.VarCov, AR4.LogL, AR4.info]  = estimate(model,x); 
+[xf(i) xfmse(i)]= forecast(AR4.fit,1,'Y0',x(1:i));
+    
+    if y==0
+        if xf(i)>reg.res(i)
+            y=1;
+            k=i;
+            buycost=-z1(i)+reg.coeff(2)*z2(i);%-(z1(i)*0.001425+reg.coeff(2)*z2(i)*0.004425);
+            payoff(i)=payoff(i-1);
+            
+        elseif xf(i)<reg.res(i)
+            y=-1;
+            k=i;
+              buycost=z1(i)-reg.coeff(2)*z2(i);%-(z1(i)*0.004425+reg.coeff(2)*z2(i)*0.001425);
+            payoff(i)=payoff(i-1);
+           
+        else 
+                y=0;
+                payoff(i)=payoff(i-1);
+               
+        end
+        
+    
+    elseif y==1
+         if xf(i)>reg.res(i)
+             y=1;
+             payoff(i)=payoff(k)+z1(i)-reg.coeff(2)*z2(i)+buycost;
+         
+         else
+             y=0;
+             payoff(i)=payoff(k)+z1(i)-reg.coeff(2)*z2(i)+buycost;
+            
+         end
+     else
+          if xf(i)<reg.res(i)
+              y=-1;
+              payoff(i)=payoff(k)-z1(i)+reg.coeff(2)*z2(i)+buycost;
+              
+          else
+              y=0;
+              payoff(i)=payoff(k)-z1(i)+reg.coeff(2)*z2(i)+buycost;
+             
+          end
+    end
+ 
+end
+
+
+%plot(AR4.res)
+%figure
+%subplot(4,1,1);
+%plot(z(:,19));
+%title('台泥')
+%subplot(4,1,2);
+%plot(z(:,20));
+%title('亞泥')
+%subplot(4,1,3);
+plot(payoff)
+%title('報酬')
+%subplot(4,1,4);
+%plot(reg.res);
+%title('殘差項')
