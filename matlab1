@@ -1,0 +1,113 @@
+clear 
+clc
+format long;
+
+disp(' ')
+disp('---------------------------------------------------------------------')
+disp('final.m')
+disp('---------------------------------------------------------------------')
+disp(' ')
+z=xlsread('金指');
+r=xlsread('電指');
+z1=z(1745:4223,4)*1000;
+z2=r(1745:4223,4)*4000;
+
+[h1(1),pVal1(1)] = adftest(z1,'model','AR'); 
+[h0(1),pVal0(1)] = kpsstest(z1,'trend',false); 
+
+[h1(2),pVal1(2)] = adftest(z2,'model','AR'); 
+[h0(2),pVal0(2)] = kpsstest(z2,'trend',false);
+
+
+[h1d(1),pVal1d(1)] = adftest(diff(z1),'model','AR'); 
+[h0d(1),pVal0d(1)] = kpsstest(diff(z1),'trend',false);  
+
+[h1d(2),pVal1d(2)] = adftest(diff(z2),'model','AR'); 
+[h0d(2),pVal0d(2)] = kpsstest(diff(z2),'trend',false);
+
+
+[hEGm, pValEGm] = egcitest([z1 z2],'test',{'t1','t2'});
+
+[~,~,~,~,reg] = egcitest([z1 z2]);
+x=0;
+
+buycost=0;
+
+
+    
+for j=1:400
+for p=1:50
+    payoff(1:400)=0;
+for i=401:2479
+
+    if x==0
+        if reg.res(i)>0.1*p*std(reg.res((i-j):i))
+            x=1;
+            k=i;
+            buycost=z1(i)-reg.coeff(2)*z2(i)-(1+reg.coeff(2)*4)*1000;
+            payoff(i)=payoff(i-1);
+            
+        elseif reg.res(i)<-p*0.1*std(reg.res((i-j):i))
+            x=-1;
+            k=i;
+              buycost=-z1(i)+reg.coeff(2)*z2(i)-(1+reg.coeff(2)*4)*1000;
+            payoff(i)=payoff(i-1);
+           
+        else 
+                x=0;
+                payoff(i)=payoff(i-1);
+               
+        end
+        
+    
+    elseif x==1
+         if reg.res(i)>0
+             x=1;
+             payoff(i)=payoff(k)-z1(i)+reg.coeff(2)*z2(i)+buycost;
+         
+         else
+             x=0;
+             payoff(i)=payoff(k)-z1(i)+reg.coeff(2)*z2(i)+buycost;
+            
+         end
+     else
+          if reg.res(i)<0
+              x=-1;
+              payoff(i)=payoff(k)+z1(i)-reg.coeff(2)*z2(i)+buycost;
+              
+          else
+              x=0;
+              payoff(i)=payoff(k)+z1(i)-reg.coeff(2)*z2(i)+buycost;
+           
+          end
+    end
+    
+end
+profit(j,p)=payoff(2479);
+payoff(1:2479)=0;
+
+
+end
+
+payoff(1:2479)=0;
+
+end
+o(1:400,1:50)=max(max(profit));
+l=profit-o;
+
+figure
+%subplot(4,1,1);
+%plot(z1);
+%title('金指')
+%subplot(4,1,2);
+%plot(z2);
+%title('電指')
+%subplot(4,1,3);
+surf(profit)
+colormap summer
+rotate3d on
+hidden on
+title('報酬')
+%subplot(4,1,4);
+%plot(reg.res);
+%title('殘差項')
