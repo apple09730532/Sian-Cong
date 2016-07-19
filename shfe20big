@@ -1,0 +1,211 @@
+import pandas as pd
+import requests
+import sys
+import datetime
+def getDayData(date):
+    try:
+        response = requests.get("http://www.shfe.com.cn/data/dailydata/kx/pm"+date+".dat")
+        return response.json()
+    except:
+        return False
+def make_date_range(start,end):
+    start,end = datetime.datetime.strptime(start,"%Y%m%d").date() , datetime.datetime.strptime(end,"%Y%m%d").date()
+    dates,count = [],0
+    while True:
+        thisDay = start + datetime.timedelta(days=+count)
+        dates.append(thisDay)
+        if thisDay >= end:
+            break
+        else:
+            count += 1
+    return map(lambda date:date.strftime("%Y%m%d"),dates)
+def getContract(x):
+     if df is not None: 
+        y=df[df.Contract.str.startswith(x)]
+        if y.empty==True:
+           return None
+        elif(sum(y[(y.RANK==-1)^(y.RANK==0)].Volumn)is not 0)&(sum(y[(y.RANK==-1)^(y.RANK==0)].LONG_OI)is not 0)&(sum(y[(y.RANK==-1)^(y.RANK==0)].SHORT_OI)is not 0):
+         y.replace(to_replace=u'',value=0,inplace=True)  
+         y["Volumn_Share"]=y.Volumn/sum(y[(y.RANK==-1)^(y.RANK==0)].Volumn)
+         y["LONG_OI_Share"]=y.LONG_OI/sum(y[(y.RANK==-1)^(y.RANK==0)].LONG_OI)
+         y["SHORT_OI_Share"]=y.SHORT_OI/sum(y[(y.RANK==-1)^(y.RANK==0)].SHORT_OI)
+         y=pd.DataFrame(y,columns=["Contract","RANK","Volume_company","Volumn","Volumn_Share","LONG_OIcompany","LONG_OI","LONG_OI_Share","SHORT_OIcompany","SHORT_OI","SHORT_OI_Share"])
+         y=y[(y.RANK>0)&(y.RANK<21)]
+         return y
+        else:
+         return None    
+            
+     else:
+         return None
+        
+def chart(y):
+       workbook  = writer.book
+       worksheet = writer.sheets[y]
+       worksheet.conditional_format('B2:B21', {'type': 'data_bar'})
+
+       chart1 = workbook.add_chart({'type': 'column'})
+
+       chart1.add_series({'values': '='+y+'!$E$2:$E$21',
+                  'categories':'='+y+'!$C$2:$C$21',            
+                  'name':'='+y+'!$E$1'              
+        })
+       chart1.set_title({'name': 'Top20_Volumn_Share'})
+       chart1.set_legend({'position': 'bottom'})
+       chart1.set_size({'x_scale': 1.5, 'y_scale': 1.5})
+       chart1.set_table()
+    #worksheet.insert_chart('A22', chart1)
+
+       chart2 = workbook.add_chart({'type': 'column'})
+
+       chart2.add_series({'values': '='+y+'!$H$2:$H$21',
+                  'categories':'='+y+'!$F$2:$F$21',            
+                  'name':'='+y+'!$H$1'              
+        })
+       chart2.set_title({'name': 'Top20_LONG_OI_Share'})
+       chart2.set_legend({'position': 'bottom'})
+       chart2.set_size({'x_scale': 1.5, 'y_scale': 1.5})
+       chart2.set_table()
+    #worksheet.insert_chart('A37', chart2)
+
+       chart3 = workbook.add_chart({'type': 'column'})
+
+       chart3.add_series({'values': '='+y+'!$K$2:$K$21',
+                  'categories':'='+y+'!$I$2:$I$21',            
+                  'name':'='+y+'!$K$1'              
+        })
+       chart3.set_title({'name': 'Top20_SHORT_OI_Share'})
+       chart3.set_legend({'position': 'bottom'})
+       chart3.set_size({'x_scale': 1.5, 'y_scale': 1.5})
+       chart3.set_table()
+    #worksheet.insert_chart('A52', chart3)
+       return worksheet.insert_chart('A22',chart1),worksheet.insert_chart('A44', chart2),worksheet.insert_chart('A66', chart3)    
+    
+#x=datetime.date.today()
+#y=datetime.date.isoformat(x)
+#date=filter(str.isdigit, y)
+if sys.argv[1] =='today':  
+  x=datetime.date.today()
+  y=datetime.date.isoformat(x)
+  date=filter(str.isdigit, y) 
+  response= getDayData(date)
+  if response is False:
+     df=None
+  else:
+     df=pd.DataFrame(response["o_cursor"],columns=["INSTRUMENTID","RANK","PARTICIPANTABBR1","CJ1","PARTICIPANTABBR2","CJ2","PARTICIPANTABBR3","CJ3"])
+     df=df.rename(columns={'INSTRUMENTID':'Contract','CJ1':'Volumn','PARTICIPANTABBR1':'Volume_company','CJ2':'LONG_OI','PARTICIPANTABBR2':'LONG_OIcompany','CJ3':'SHORT_OI','PARTICIPANTABBR3':'SHORT_OIcompany'})
+     cu=getContract('cuactv')
+     al=getContract('alactv')
+     zn=getContract('znactv')
+     ni=getContract('niactv')
+     au=getContract('auactv')
+     ag=getContract('agactv')
+     rb=getContract('rbactv')
+     hc=getContract('hcactv')
+     bu=getContract('buactv')
+     ru=getContract('ruactv')
+     if df is not None:
+      writer = pd.ExcelWriter("shfe"+date+".xlsx",engine='xlsxwriter')
+     if cu is not None:
+      cu.to_excel(writer,"cu",index=False)
+     if al is not None:
+      al.to_excel(writer,"al",index=False)
+     if zn is not None:
+      zn.to_excel(writer,"zn",index=False)
+     if ni is not None:
+      ni.to_excel(writer,"ni",index=False)
+     if au is not None:
+      au.to_excel(writer,"au",index=False)
+     if ag is not None:
+      ag.to_excel(writer,"ag",index=False)
+     if rb is not None:
+      rb.to_excel(writer,"rb",index=False)
+     if hc is not None:
+      hc.to_excel(writer,"hc",index=False)
+     if bu is not None:
+      bu.to_excel(writer,"bu",index=False)
+     if ru is not None:
+      ru.to_excel(writer,"ru",index=False)    
+     if cu is not None:
+      chart('cu')
+     if al is not None:
+      chart('al')
+     if zn is not None:
+      chart('zn')
+     if ni is not None:
+      chart('ni')
+     if au is not None:
+      chart('au')
+     if ag is not None:
+      chart('ag')
+     if rb is not None:
+      chart('rb')                  
+     if hc is not None:
+      chart('hc')
+     if bu is not None:
+      chart('bu')
+     if ru is not None:
+      chart('ru')                
+else:    
+     start,end=sys.argv[1],sys.argv[2]
+     for date in make_date_range(start,end):
+           response= getDayData(date)
+           if response is False:
+             df=None
+           else:
+             df=pd.DataFrame(response["o_cursor"],columns=["INSTRUMENTID","RANK","PARTICIPANTABBR1","CJ1","PARTICIPANTABBR2","CJ2","PARTICIPANTABBR3","CJ3"])
+             df=df.rename(columns={'INSTRUMENTID':'Contract','CJ1':'Volumn','PARTICIPANTABBR1':'Volume_company','CJ2':'LONG_OI','PARTICIPANTABBR2':'LONG_OIcompany','CJ3':'SHORT_OI','PARTICIPANTABBR3':'SHORT_OIcompany'})
+           cu=getContract('cuactv')
+           al=getContract('alactv')
+           zn=getContract('znactv')
+           ni=getContract('niactv')
+           au=getContract('auactv')
+           ag=getContract('agactv')
+           rb=getContract('rbactv')
+           hc=getContract('hcactv')
+           bu=getContract('buactv')
+           ru=getContract('ruactv')
+           if cu is not None:
+            writer = pd.ExcelWriter("shfe"+date+".xlsx",engine='xlsxwriter')
+           if cu is not None:
+            cu.to_excel(writer,"cu",index=False)
+           if al is not None:
+            al.to_excel(writer,"al",index=False)
+           if zn is not None:
+            zn.to_excel(writer,"zn",index=False)
+           if ni is not None:
+            ni.to_excel(writer,"ni",index=False)
+           if au is not None:
+            au.to_excel(writer,"au",index=False)
+           if ag is not None:
+            ag.to_excel(writer,"ag",index=False)
+           if rb is not None:
+            rb.to_excel(writer,"rb",index=False)
+           if hc is not None:
+            hc.to_excel(writer,"hc",index=False)
+           if bu is not None:
+            bu.to_excel(writer,"bu",index=False)
+           if ru is not None:
+            ru.to_excel(writer,"ru",index=False)    
+           if cu is not None:
+             chart('cu')
+           if al is not None:
+            chart('al')
+           if zn is not None:
+            chart('zn')
+           if ni is not None:
+            chart('ni')
+           if au is not None:
+            chart('au')
+           if ag is not None:
+            chart('ag')
+           if rb is not None:
+            chart('rb')
+           if hc is not None:
+            chart('hc')
+           if bu is not None:
+            chart('bu')
+           if ru is not None:
+            chart('ru')  
+
+
+
