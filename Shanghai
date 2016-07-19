@@ -1,0 +1,300 @@
+
+import pandas as pd
+import requests
+import sys
+import datetime
+def chart50etf(y):
+       workbook  = writer.book
+       worksheet = writer.sheets[y]
+       worksheet.conditional_format('C2:C6', {'type': 'data_bar'})
+
+       chart1 = workbook.add_chart({'type': 'column'})
+
+       chart1.add_series({'values': '='+y+'!$F$2:$F$6',
+                  'categories':'='+y+'!$D$2:$D$6',            
+                  'name':'='+y+'!$F$1'              
+        })
+       chart1.set_title({'name': 'Call_Top5_Volumn_Share'})
+       chart1.set_legend({'position': 'bottom'})
+       chart1.set_table()
+    #worksheet.insert_chart('A22', chart1)
+
+       chart2 = workbook.add_chart({'type': 'column'})
+
+       chart2.add_series({'values': '='+y+'!$F$7:$F$11',
+                  'categories':'='+y+'!$D$7:$D$11',            
+                  'name':'='+y+'!$F$1'              
+        })
+       chart2.set_title({'name': 'Put_Top5_Volumn_Share'})
+       chart2.set_legend({'position': 'bottom'})
+       chart2.set_table()
+    #worksheet.insert_chart('A37', chart2)
+
+       chart3 = workbook.add_chart({'type': 'column'})
+
+       chart3.add_series({'values': '='+y+'!$I$2:$I$6',
+                  'categories':'='+y+'!$G$2:$G$6',            
+                  'name':'='+y+'!$I$1'              
+        })
+       chart3.set_title({'name': 'Call_Top5_OI_Share'})
+       chart3.set_legend({'position': 'bottom'})
+       chart3.set_table()
+    #worksheet.insert_chart('A52', chart3)
+       chart4 = workbook.add_chart({'type': 'column'})
+
+       chart4.add_series({'values': '='+y+'!$I$7:$I$11',
+                  'categories':'='+y+'!$G$7:$G$11',            
+                  'name':'='+y+'!$I$1'              
+        })
+       chart4.set_title({'name': 'Put_Top5_OI_Share'})
+       chart4.set_legend({'position': 'bottom'})
+       chart4.set_table()
+       
+       return worksheet.insert_chart('A12',chart1),worksheet.insert_chart('A27', chart2),worksheet.insert_chart('I12', chart3),worksheet.insert_chart('I27', chart4)
+
+def get50ETFData(date):
+    try:
+        params={"tradeDate":date,}         
+        headers= {"Referer":"http://www.sse.com.cn/assortment/options/disclo/tradeinfo/"} 
+        response_volumn= requests.get("http://query.sse.com.cn/security/warrant/queryFormalOverviewActiveData.do",params=params,headers=headers).json()
+        response_hold=requests.get("http://query.sse.com.cn/security/warrant/queryFormalOverviewPositionData.do",params=params,headers=headers).json()
+        df_volumn=pd.DataFrame(response_volumn["result"][0],columns=["TRADE_DATE","MEMBER_ABBR","CALL_OR_PUT","MEMBER_RANK","MEMBER_VOLUME","SECURITY_VOLUME","UNDERLYING_SYMBOL",])
+        df_hold=pd.DataFrame(response_hold["result"][0],columns=["TRADE_DATE","MEMBER_ABBR","CALL_OR_PUT","MEMBER_RANK","MEMBER_HOLD","HOLD_QUANTITY","UNDERLYING_SYMBOL",])
+        df_volumn["MEMBER_VOLUME"] = df_volumn["MEMBER_VOLUME"].str.split(',').str.join('')
+        df_volumn["MEMBER_VOLUME"] = df_volumn["MEMBER_VOLUME"].astype(float)
+        df_volumn["SECURITY_VOLUME"] = df_volumn["SECURITY_VOLUME"].str.split(',').str.join('')
+        df_volumn["SECURITY_VOLUME"] = df_volumn["SECURITY_VOLUME"].astype(float)
+        df_volumn["MARKETSHARE_VOLUME"] = df_volumn["MEMBER_VOLUME"] / df_volumn["SECURITY_VOLUME"]
+        df_volumn.sort(columns=['CALL_OR_PUT','MEMBER_RANK'],inplace=True)
+        df_volumn.dropna(how="all",inplace=True)
+        df_hold["MEMBER_HOLD"] = df_hold["MEMBER_HOLD"].str.split(',').str.join('')
+        df_hold["MEMBER_HOLD"] = df_hold["MEMBER_HOLD"].astype(float)
+        df_hold["HOLD_QUANTITY"] = df_hold["HOLD_QUANTITY"].str.split(',').str.join('')
+        df_hold["HOLD_QUANTITY"] = df_hold["HOLD_QUANTITY"].astype(float)
+        df_hold["MARKETSHARE_HOLD"] = df_hold["MEMBER_HOLD"] / df_hold["HOLD_QUANTITY"]
+        df_hold.sort(columns=['CALL_OR_PUT','MEMBER_RANK'],inplace=True)
+        df_hold.dropna(how="all",inplace=True)
+        df_hold.rename(columns={'CALL_OR_PUT':'CALL_OR_PUT1','TRADE_DATE':'TRADE_DATE1','MEMBER_ABBR':'MEMBER_ABBR1','MEMBER_RANK':'MEMBER_RANK1','UNDERLYING_SYMBOL':'UNDERLYING_SYMBOL1'},inplace=True)
+        df_total=pd.concat([df_volumn,df_hold],axis=1,join_axes=[df_volumn.index])
+        df_total=pd.DataFrame(df_total,columns=["UNDERLYING_SYMBOL","CALL_OR_PUT","MEMBER_RANK","MEMBER_ABBR","MEMBER_VOLUME","MARKETSHARE_VOLUME","MEMBER_ABBR1","MEMBER_HOLD","MARKETSHARE_HOLD"])
+        df_total.rename(columns={'UNDERLYING_SYMBOL':'Underlying_Assets','CALL_OR_PUT':'Call_or_Put','MEMBER_RANK':'RANK','MEMBER_ABBR':'Volume_company','MEMBER_VOLUME':'Volumn','MARKETSHARE_VOLUME':'Marketshare_Volumn','MEMBER_ABBR1':'OI_company','MEMBER_HOLD':'OI','MARKETSHARE_HOLD':'Marketshare_OI'},inplace=True)
+        if df_total.empty is False:return df_total
+        else:return None    
+    except:
+        return False
+
+
+def getDayData(date):
+    try:
+        response = requests.get("http://www.shfe.com.cn/data/dailydata/kx/pm"+date+".dat")
+        return response.json()
+    except:
+        return False
+def make_date_range(start,end):
+    start,end = datetime.datetime.strptime(start,"%Y%m%d").date() , datetime.datetime.strptime(end,"%Y%m%d").date()
+    dates,count = [],0
+    while True:
+        thisDay = start + datetime.timedelta(days=+count)
+        dates.append(thisDay)
+        if thisDay >= end:
+            break
+        else:
+            count += 1
+    return map(lambda date:date.strftime("%Y%m%d"),dates)
+def getContract(x):
+     if df is not None: 
+        y=df[df.Contract.str.startswith(x)]
+        if y.empty==True:
+           return None
+        elif(sum(y[(y.RANK==-1)^(y.RANK==0)].Volumn)is not 0)&(sum(y[(y.RANK==-1)^(y.RANK==0)].LONG_OI)is not 0)&(sum(y[(y.RANK==-1)^(y.RANK==0)].SHORT_OI)is not 0):
+         y.replace(to_replace=u'',value=0,inplace=True)  
+         y["Volumn_Share"]=y.Volumn/sum(y[(y.RANK==-1)^(y.RANK==0)].Volumn)
+         y["LONG_OI_Share"]=y.LONG_OI/sum(y[(y.RANK==-1)^(y.RANK==0)].LONG_OI)
+         y["SHORT_OI_Share"]=y.SHORT_OI/sum(y[(y.RANK==-1)^(y.RANK==0)].SHORT_OI)
+         y=pd.DataFrame(y,columns=["Contract","RANK","Volume_company","Volumn","Volumn_Share","LONG_OIcompany","LONG_OI","LONG_OI_Share","SHORT_OIcompany","SHORT_OI","SHORT_OI_Share"])
+         y=y[(y.RANK>0)&(y.RANK<21)]
+         return y
+        else:
+         return None    
+            
+     else:
+         return None
+        
+def chart(y):
+       workbook  = writer.book
+       worksheet = writer.sheets[y]
+       worksheet.conditional_format('B2:B21', {'type': 'data_bar'})
+
+       chart1 = workbook.add_chart({'type': 'column'})
+
+       chart1.add_series({'values': '='+y+'!$E$2:$E$21',
+                  'categories':'='+y+'!$C$2:$C$21',            
+                  'name':'='+y+'!$E$1'              
+        })
+       chart1.set_title({'name': 'Top20_Volumn_Share'})
+       chart1.set_legend({'position': 'bottom'})
+       chart1.set_size({'x_scale': 1.5, 'y_scale': 1.5})
+       chart1.set_table()
+    #worksheet.insert_chart('A22', chart1)
+
+       chart2 = workbook.add_chart({'type': 'column'})
+
+       chart2.add_series({'values': '='+y+'!$H$2:$H$21',
+                  'categories':'='+y+'!$F$2:$F$21',            
+                  'name':'='+y+'!$H$1'              
+        })
+       chart2.set_title({'name': 'Top20_LONG_OI_Share'})
+       chart2.set_legend({'position': 'bottom'})
+       chart2.set_size({'x_scale': 1.5, 'y_scale': 1.5})
+       chart2.set_table()
+    #worksheet.insert_chart('A37', chart2)
+
+       chart3 = workbook.add_chart({'type': 'column'})
+
+       chart3.add_series({'values': '='+y+'!$K$2:$K$21',
+                  'categories':'='+y+'!$I$2:$I$21',            
+                  'name':'='+y+'!$K$1'              
+        })
+       chart3.set_title({'name': 'Top20_SHORT_OI_Share'})
+       chart3.set_legend({'position': 'bottom'})
+       chart3.set_size({'x_scale': 1.5, 'y_scale': 1.5})
+       chart3.set_table()
+    #worksheet.insert_chart('A52', chart3)
+       return worksheet.insert_chart('A22',chart1),worksheet.insert_chart('A44', chart2),worksheet.insert_chart('A66', chart3)    
+    
+#x=datetime.date.today()
+#y=datetime.date.isoformat(x)
+#date=filter(str.isdigit, y)
+if sys.argv[1] =='today':  
+  x=datetime.date.today()
+  y=datetime.date.isoformat(x)
+  date=filter(str.isdigit, y) 
+  response= getDayData(date)
+  if response is False:
+     df=None
+  else:
+     df=pd.DataFrame(response["o_cursor"],columns=["INSTRUMENTID","RANK","PARTICIPANTABBR1","CJ1","PARTICIPANTABBR2","CJ2","PARTICIPANTABBR3","CJ3"])
+     df=df.rename(columns={'INSTRUMENTID':'Contract','CJ1':'Volumn','PARTICIPANTABBR1':'Volume_company','CJ2':'LONG_OI','PARTICIPANTABBR2':'LONG_OIcompany','CJ3':'SHORT_OI','PARTICIPANTABBR3':'SHORT_OIcompany'})
+     cu=getContract('cuactv')
+     al=getContract('alactv')
+     zn=getContract('znactv')
+     ni=getContract('niactv')
+     au=getContract('auactv')
+     ag=getContract('agactv')
+     rb=getContract('rbactv')
+     hc=getContract('hcactv')
+     bu=getContract('buactv')
+     ru=getContract('ruactv')
+     option50etf=get50ETFData(date)   
+     if (df is not None) or (option50etf is not None):
+      writer = pd.ExcelWriter("Shanghai"+date+".xlsx",engine='xlsxwriter')
+     if cu is not None:
+      cu.to_excel(writer,"cu",index=False)
+     if al is not None:
+      al.to_excel(writer,"al",index=False)
+     if zn is not None:
+      zn.to_excel(writer,"zn",index=False)
+     if ni is not None:
+      ni.to_excel(writer,"ni",index=False)
+     if au is not None:
+      au.to_excel(writer,"au",index=False)
+     if ag is not None:
+      ag.to_excel(writer,"ag",index=False)
+     if rb is not None:
+      rb.to_excel(writer,"rb",index=False)
+     if hc is not None:
+      hc.to_excel(writer,"hc",index=False)
+     if bu is not None:
+      bu.to_excel(writer,"bu",index=False)
+     if ru is not None:
+      ru.to_excel(writer,"ru",index=False) 
+     if option50etf is not None:
+      option50etf.to_excel(writer,"option50etf",index=False)   
+     if cu is not None:
+      chart('cu')
+     if al is not None:
+      chart('al')
+     if zn is not None:
+      chart('zn')
+     if ni is not None:
+      chart('ni')
+     if au is not None:
+      chart('au')
+     if ag is not None:
+      chart('ag')
+     if rb is not None:
+      chart('rb')                  
+     if hc is not None:
+      chart('hc')
+     if bu is not None:
+      chart('bu')
+     if ru is not None:
+      chart('ru')
+     if option50etf is not None:
+      chart50etf('option50etf')           
+else:    
+     start,end=sys.argv[1],sys.argv[2]
+     for date in make_date_range(start,end):
+           response= getDayData(date)
+           if response is False:
+             df=None
+           else:
+             df=pd.DataFrame(response["o_cursor"],columns=["INSTRUMENTID","RANK","PARTICIPANTABBR1","CJ1","PARTICIPANTABBR2","CJ2","PARTICIPANTABBR3","CJ3"])
+             df=df.rename(columns={'INSTRUMENTID':'Contract','CJ1':'Volumn','PARTICIPANTABBR1':'Volume_company','CJ2':'LONG_OI','PARTICIPANTABBR2':'LONG_OIcompany','CJ3':'SHORT_OI','PARTICIPANTABBR3':'SHORT_OIcompany'})
+           cu=getContract('cuactv')
+           al=getContract('alactv')
+           zn=getContract('znactv')
+           ni=getContract('niactv')
+           au=getContract('auactv')
+           ag=getContract('agactv')
+           rb=getContract('rbactv')
+           hc=getContract('hcactv')
+           bu=getContract('buactv')
+           ru=getContract('ruactv')
+           option50etf=get50ETFData(date)
+           if (cu is not None) or (option50etf is not None):
+            writer = pd.ExcelWriter("Shanghai"+date+".xlsx",engine='xlsxwriter')
+           if cu is not None:
+            cu.to_excel(writer,"cu",index=False)
+           if al is not None:
+            al.to_excel(writer,"al",index=False)
+           if zn is not None:
+            zn.to_excel(writer,"zn",index=False)
+           if ni is not None:
+            ni.to_excel(writer,"ni",index=False)
+           if au is not None:
+            au.to_excel(writer,"au",index=False)
+           if ag is not None:
+            ag.to_excel(writer,"ag",index=False)
+           if rb is not None:
+            rb.to_excel(writer,"rb",index=False)
+           if hc is not None:
+            hc.to_excel(writer,"hc",index=False)
+           if bu is not None:
+            bu.to_excel(writer,"bu",index=False)
+           if ru is not None:
+            ru.to_excel(writer,"ru",index=False)
+           if option50etf is not None:
+            option50etf.to_excel(writer,"option50etf",index=False) 
+           if cu is not None:
+             chart('cu')
+           if al is not None:
+            chart('al')
+           if zn is not None:
+            chart('zn')
+           if ni is not None:
+            chart('ni')
+           if au is not None:
+            chart('au')
+           if ag is not None:
+            chart('ag')
+           if rb is not None:
+            chart('rb')
+           if hc is not None:
+            chart('hc')
+           if bu is not None:
+            chart('bu')
+           if ru is not None:
+            chart('ru')  
+           if option50etf is not None:
+            chart50etf('option50etf') 
