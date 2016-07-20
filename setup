@@ -1,0 +1,6 @@
+from distutils.core import setup  
+import py2exe  
+import sys
+import matplotlib
+sys.setrecursionlimit(1000000)
+setup(console=["Shanghai_gui.py"],data_files=matplotlib.get_py2exe_datafiles(),options={"py2exe":{"includes":["numpy"]}})
