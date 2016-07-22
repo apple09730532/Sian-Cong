@@ -1,0 +1,225 @@
+import pandas as pd
+import requests
+import datetime
+def get50ETFData(date):
+        try:
+            params={"tradeDate":date,}         
+            headers= {"Referer":"http://www.sse.com.cn/assortment/options/disclo/tradeinfo/"} 
+            response_volumn= requests.get("http://query.sse.com.cn/security/warrant/queryFormalOverviewActiveData.do",params=params,headers=headers).json()
+            response_hold=requests.get("http://query.sse.com.cn/security/warrant/queryFormalOverviewPositionData.do",params=params,headers=headers).json()
+            df_volumn=pd.DataFrame(response_volumn["result"][0],columns=["TRADE_DATE","MEMBER_ABBR","CALL_OR_PUT","MEMBER_RANK","MEMBER_VOLUME","SECURITY_VOLUME","UNDERLYING_SYMBOL",])
+            df_hold=pd.DataFrame(response_hold["result"][0],columns=["TRADE_DATE","MEMBER_ABBR","CALL_OR_PUT","MEMBER_RANK","MEMBER_HOLD","HOLD_QUANTITY","UNDERLYING_SYMBOL",])
+            df_volumn["MEMBER_VOLUME"] = df_volumn["MEMBER_VOLUME"].str.split(',').str.join('')
+            df_volumn["MEMBER_VOLUME"] = df_volumn["MEMBER_VOLUME"].astype(float)
+            df_volumn["SECURITY_VOLUME"] = df_volumn["SECURITY_VOLUME"].str.split(',').str.join('')
+            df_volumn["SECURITY_VOLUME"] = df_volumn["SECURITY_VOLUME"].astype(float)
+            df_volumn["MARKETSHARE_VOLUME"] = df_volumn["MEMBER_VOLUME"] / df_volumn["SECURITY_VOLUME"]
+            df_volumn.sort(columns=['CALL_OR_PUT','MEMBER_RANK'],inplace=True)
+            df_volumn.dropna(how="all",inplace=True)
+            df_hold["MEMBER_HOLD"] = df_hold["MEMBER_HOLD"].str.split(',').str.join('')
+            df_hold["MEMBER_HOLD"] = df_hold["MEMBER_HOLD"].astype(float)
+            df_hold["HOLD_QUANTITY"] = df_hold["HOLD_QUANTITY"].str.split(',').str.join('')
+            df_hold["HOLD_QUANTITY"] = df_hold["HOLD_QUANTITY"].astype(float)
+            df_hold["MARKETSHARE_HOLD"] = df_hold["MEMBER_HOLD"] / df_hold["HOLD_QUANTITY"]
+            df_hold.sort(columns=['CALL_OR_PUT','MEMBER_RANK'],inplace=True)
+            df_hold.dropna(how="all",inplace=True)
+            df_hold.rename(columns={'CALL_OR_PUT':'CALL_OR_PUT1','TRADE_DATE':'TRADE_DATE1','MEMBER_ABBR':'MEMBER_ABBR1','MEMBER_RANK':'MEMBER_RANK1','UNDERLYING_SYMBOL':'UNDERLYING_SYMBOL1'},inplace=True)
+            df_total=pd.concat([df_volumn,df_hold],axis=1,join_axes=[df_volumn.index])
+            df_total=pd.DataFrame(df_total,columns=["TRADE_DATE","UNDERLYING_SYMBOL","CALL_OR_PUT","MEMBER_RANK","MEMBER_ABBR","MEMBER_VOLUME","MARKETSHARE_VOLUME","MEMBER_ABBR1","MEMBER_HOLD","MARKETSHARE_HOLD"])
+            df_total.rename(columns={'TRADE_DATE':'Date','UNDERLYING_SYMBOL':'Underlying_Assets','CALL_OR_PUT':'Call_or_Put','MEMBER_RANK':'RANK','MEMBER_ABBR':'Volume_company','MEMBER_VOLUME':'Volumn','MARKETSHARE_VOLUME':'Marketshare_Volumn','MEMBER_ABBR1':'OI_company','MEMBER_HOLD':'OI','MARKETSHARE_HOLD':'Marketshare_OI'},inplace=True)
+            if df_total.empty is False:return df_total
+            else:return None    
+        except:
+            return False
+def getDayData(date):
+        try:
+            response = requests.get("http://www.shfe.com.cn/data/dailydata/kx/pm"+date+".dat")
+            #response.encoding="GBK"
+            return response.json()["o_cursor"]
+        except:
+            return False
+def make_date_range(start,end):
+        start,end = datetime.datetime.strptime(start,"%Y%m%d").date() , datetime.datetime.strptime(end,"%Y%m%d").date()
+        dates,count = [],0
+        while True:
+            thisDay = start + datetime.timedelta(days=+count)
+            dates.append(thisDay)
+            if thisDay >= end:
+                break
+            else:
+                count += 1
+        return map(lambda date:date.strftime("%Y%m%d"),dates)
+def getContract(z):
+         if df is not None: 
+            y=df[df.Contract.str.startswith(z)]
+            if y.empty==True:
+               return None
+            elif(sum(y[(y.RANK==-1)^(y.RANK==0)].Volumn)is not 0)&(sum(y[(y.RANK==-1)^(y.RANK==0)].LONG_OI)is not 0)&(sum(y[(y.RANK==-1)^(y.RANK==0)].SHORT_OI)is not 0):
+             y.replace(to_replace=u'',value=0,inplace=True)  
+             y["Volumn_Share"]=y.Volumn/sum(y[(y.RANK==-1)^(y.RANK==0)].Volumn)
+             y["LONG_OI_Share"]=y.LONG_OI/sum(y[(y.RANK==-1)^(y.RANK==0)].LONG_OI)
+             y["SHORT_OI_Share"]=y.SHORT_OI/sum(y[(y.RANK==-1)^(y.RANK==0)].SHORT_OI)
+             y=pd.DataFrame(y,columns=["Date","Contract","RANK","Volume_company","Volumn","Volumn_Share","LONG_OIcompany","LONG_OI","LONG_OI_Share","SHORT_OIcompany","SHORT_OI","SHORT_OI_Share"])
+             y=y[(y.RANK>0)&(y.RANK<21)]
+             return y
+            else:
+             return None    
+                
+         else:
+             return None
+def concatdata(x):
+ if len(x)==0:
+  return None
+ elif len(x)==1:
+  return x[0]
+ else:
+  y=pd.concat([x[0],x[1]])
+  for i in range(2,len(x)):
+   y=pd.concat([y,x[i]])
+  y.sort(columns=['RANK','Date'],inplace=True)
+  return y                 
+def chart(y):  
+           workbook  = writer.book
+           worksheet = writer.sheets[y]
+           chart1 = workbook.add_chart({'type': 'column'})
+    
+           chart1.add_series({'values': '='+y+'!$E$2:$E$21',
+                      'categories':'='+y+'!$C$2:$C$21',            
+                      'name':'='+y+'!$E$1'              
+            })
+           chart1.set_title({'name': 'Top20_Volumn_Share'})
+           chart1.set_legend({'position': 'bottom'})
+           chart1.set_size({'x_scale': 1.5, 'y_scale': 1.5})
+           chart1.set_table()
+        #worksheet.insert_chart('A22', chart1)
+    
+           chart2 = workbook.add_chart({'type': 'column'})
+    
+           chart2.add_series({'values': '='+y+'!$H$2:$H$21',
+                      'categories':'='+y+'!$F$2:$F$21',            
+                      'name':'='+y+'!$H$1'              
+            })
+           chart2.set_title({'name': 'Top20_LONG_OI_Share'})
+           chart2.set_legend({'position': 'bottom'})
+           chart2.set_size({'x_scale': 1.5, 'y_scale': 1.5})
+           chart2.set_table()
+        #worksheet.insert_chart('A37', chart2)
+    
+           chart3 = workbook.add_chart({'type': 'column'})
+    
+           chart3.add_series({'values': '='+y+'!$K$2:$K$21',
+                      'categories':'='+y+'!$I$2:$I$21',            
+                      'name':'='+y+'!$K$1'              
+            })
+           chart3.set_title({'name': 'Top20_SHORT_OI_Share'})
+           chart3.set_legend({'position': 'bottom'})
+           chart3.set_size({'x_scale': 1.5, 'y_scale': 1.5})
+           chart3.set_table()
+        #worksheet.insert_chart('A52', chart3)
+           return worksheet.insert_chart('A22',chart1),worksheet.insert_chart('A44', chart2),worksheet.insert_chart('A66', chart3)
+cus=[]
+als=[]
+zns=[]
+nis=[]
+aus=[]
+ags=[]
+rbs=[]
+hcs=[]
+bus=[]
+rus=[]
+option50etfs=[]
+start,end='20160601','20160707'            
+for date in make_date_range(start,end):
+    response=getDayData(date)
+    if response is False:
+     df=None
+    elif len(response)==0:
+     df=None  
+    else:    
+     df=pd.DataFrame(response,columns=["INSTRUMENTID","RANK","PARTICIPANTABBR1","CJ1","PARTICIPANTABBR2","CJ2","PARTICIPANTABBR3","CJ3"])
+     df["Date"]=date   
+     df=df.rename(columns={'INSTRUMENTID':'Contract','CJ1':'Volumn','PARTICIPANTABBR1':'Volume_company','CJ2':'LONG_OI','PARTICIPANTABBR2':'LONG_OIcompany','CJ3':'SHORT_OI','PARTICIPANTABBR3':'SHORT_OIcompany'})
+     df=pd.DataFrame(df,columns=["Date","Contract","RANK","Volume_company","Volumn","LONG_OIcompany","LONG_OI","SHORT_OIcompany","SHORT_OI"])
+    cu=getContract('cuactv')
+    al=getContract('alactv')
+    zn=getContract('znactv')
+    ni=getContract('niactv')
+    au=getContract('auactv')
+    ag=getContract('agactv')
+    rb=getContract('rbactv')
+    hc=getContract('hcactv')
+    bu=getContract('buactv')
+    ru=getContract('ruactv')
+    option50etf=get50ETFData(date)
+    if cu is not None: 
+     cus.append(cu)
+    if al is not None: 
+     als.append(al)
+    if zn is not None: 
+     zns.append(zn)
+    if ni is not None: 
+     nis.append(ni)
+    if au is not None: 
+     aus.append(au)
+    if ag is not None: 
+     ags.append(ag)
+    if rb is not None: 
+     rbs.append(rb)
+    if hc is not None: 
+     hcs.append(hc)
+    if bu is not None: 
+     bus.append(bu)
+    if ru is not None: 
+     rus.append(ru)
+    if option50etf is not None: 
+     option50etfs.append(option50etf)     
+
+     
+     
+     
+     
+cuss=concatdata(cus)
+alss=concatdata(als)
+znss=concatdata(zns)
+niss=concatdata(nis)
+auss=concatdata(aus)
+agss=concatdata(ags)
+rbss=concatdata(rbs)
+hcss=concatdata(hcs)
+buss=concatdata(bus)
+russ=concatdata(rus)  
+option50etfss=concatdata(option50etfs)
+if option50etfss is not None:
+ option50etfss.sort(columns=['Call_or_Put','RANK','Date'],inplace=True)
+if (cuss is not None) or (option50etfss is not None):
+    writer = pd.ExcelWriter("Shanghai"+start+"to"+end+".xlsx",engine='xlsxwriter') 
+if cuss is not None:
+    cuss.to_excel(writer,"cu",index=False)
+if alss is not None:
+    alss.to_excel(writer,"al",index=False)
+if znss is not None:
+    znss.to_excel(writer,"zn",index=False)
+if niss is not None:
+    niss.to_excel(writer,"ni",index=False)
+if auss is not None:
+    auss.to_excel(writer,"au",index=False)
+if agss is not None:
+    agss.to_excel(writer,"ag",index=False)
+if rbss is not None:
+    rbss.to_excel(writer,"rb",index=False)
+if hcss is not None:
+    hcss.to_excel(writer,"hc",index=False)
+if buss is not None:
+    buss.to_excel(writer,"bu",index=False)
+if russ is not None:
+    russ.to_excel(writer,"ru",index=False)
+if option50etfss is not None:
+    option50etfss.to_excel(writer,"option50etf",index=False)       
+        
+        
+        
+        
+        
+        
+        
+        
