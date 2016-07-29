@@ -1,0 +1,63 @@
+import pandas as pd
+import requests
+import datetime
+def getDayData(date):
+            try:
+                response = requests.get("http://www.shfe.com.cn/data/dailydata/kx/kx"+date+".dat")
+                #response.encoding="GBK"
+                return response.json()["o_curinstrument"]
+            except:
+                return False
+def make_date_range(start,end):
+            start,end = datetime.datetime.strptime(start,"%Y%m%d").date() , datetime.datetime.strptime(end,"%Y%m%d").date()
+            dates,count = [],0
+            while True:
+                thisDay = start + datetime.timedelta(days=+count)
+                dates.append(thisDay)
+                if thisDay >= end:
+                    break
+                else:
+                    count += 1
+            return map(lambda date:date.strftime("%Y%m%d"),dates)
+def getContract(z):
+             if df is not None: 
+                y=df[df.PRODUCTID.str.startswith(z)]
+                if y.empty==True:
+                   return None
+                else:
+                 y.replace(to_replace=u'',value=0,inplace=True)  
+                 y=y[y.DELIVERYMONTH.str.startswith(u'小计')]
+                
+                 y=pd.DataFrame(y,columns=["Date","PRODUCTID","PRODUCTNAME","VOLUME","OPENINTEREST"])
+                 return y                      
+             else:
+                 return None
+def concatdata(x):
+     if x is not None:   
+         if len(x)==0:
+          return None
+         elif len(x)==1:
+          return x[0]
+         else:
+          y=pd.concat([x[0],x[1]])
+          for i in range(2,len(x)):
+           y=pd.concat([y,x[i]])
+          y.sort(columns=['Date'],inplace=True)
+          return y
+     else:
+      return None            
+cus=[]
+start,end='20000701','20160729'            
+for date in make_date_range(start,end):
+        response=getDayData(date)
+        if response is False:
+         df=None
+        elif len(response)==0:
+         df=None  
+        else:    
+         df=pd.DataFrame(response)
+         df["Date"]=date           
+        cu=getContract('cu')
+        if cu is not None: 
+         cus.append(cu)
+cuss=concatdata(cus)
