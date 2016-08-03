@@ -1,0 +1,176 @@
+import pandas as pd
+import requests
+import datetime
+import Tkinter as tk
+def gettoday():
+     x=datetime.date.today()
+     y=datetime.date.isoformat(x)
+     date=filter(str.isdigit, y)
+     return date 
+win=tk.Tk()
+win.title("上海期貨交易所商品期貨活躍合約歷史資料")
+message1=tk.Label(win,text="起始日期")
+message2=tk.Label(win,text="結束日期")
+label1=tk.Label(win, text="請輸入起始日期、結束日期(預設為今日)")
+e1 =tk.StringVar()
+e2 =tk.StringVar()
+Entry1=tk.Entry(win,textvariable=e1)
+Entry2=tk.Entry(win,textvariable=e2)
+e1.set(gettoday())
+e2.set(gettoday())
+def clickgetdata():
+    def getDayData1(date):
+            try:
+                response = requests.get("http://www.shfe.com.cn/data/dailydata/kx/pm"+date+".dat")
+                return response.json()
+            except:
+                return False
+    def getDayData(date):
+                try:
+                    response = requests.get("http://www.shfe.com.cn/data/dailydata/kx/kx"+date+".dat")
+                    #response.encoding="GBK"
+                    return response.json()["o_curinstrument"]
+                except:
+                    return False
+    def make_date_range(start,end):
+                start,end = datetime.datetime.strptime(start,"%Y%m%d").date() , datetime.datetime.strptime(end,"%Y%m%d").date()
+                dates,count = [],0
+                while True:
+                    thisDay = start + datetime.timedelta(days=+count)
+                    dates.append(thisDay)
+                    if thisDay >= end:
+                        break
+                    else:
+                        count += 1
+                return map(lambda date:date.strftime("%Y%m%d"),dates)
+    def getContract(z):
+                 if df is not None: 
+                    y=df[df.PRODUCTID.str.startswith(z)]
+                    if y.empty==True:
+                       return None
+                    else:
+                     y.replace(to_replace=u'',value=0,inplace=True)  
+                     y=y[y.DELIVERYMONTH<>u'小计']
+                     y=y[y.VOLUME==max(y.VOLUME)]
+                     y=pd.DataFrame(y,columns=['Date','PRODUCTID','PRODUCTNAME','DELIVERYMONTH','OPENPRICE','HIGHESTPRICE','LOWESTPRICE','CLOSEPRICE','SETTLEMENTPRICE','VOLUME','OPENINTEREST'])
+                     return y                      
+                 else:
+                     return None
+    def top_netOI(date,x,y):   
+        response= getDayData1(date)
+        if response is False:
+           df=None
+        else:
+           df=pd.DataFrame(response["o_cursor"],columns=["INSTRUMENTID","RANK","PARTICIPANTABBR1","CJ1","PARTICIPANTABBR2","CJ2","PARTICIPANTABBR3","CJ3"])
+           df=df.rename(columns={'INSTRUMENTID':'Contract','CJ1':'Volumn','PARTICIPANTABBR1':'Volume_company','CJ2':'LONG_OI','PARTICIPANTABBR2':'LONG_OIcompany','CJ3':'SHORT_OI','PARTICIPANTABBR3':'SHORT_OIcompany'})
+           df=df[df.Contract.str.startswith(x)]
+           df=df[df.Contract.str.startswith(x+y)]
+           df['TOP5_Net_OI']=sum(df[(0<df.RANK)&(df.RANK<(6))].LONG_OI)-sum(df[(0<df.RANK)&(df.RANK<(6))].SHORT_OI)
+           df['TOP10_Net_OI']=sum(df[(0<df.RANK)&(df.RANK<(11))].LONG_OI)-sum(df[(0<df.RANK)&(df.RANK<(11))].SHORT_OI)
+           df['TOP20_Net_OI']=sum(df[(0<df.RANK)&(df.RANK<(21))].LONG_OI)-sum(df[(0<df.RANK)&(df.RANK<(21))].SHORT_OI)
+          
+           df=df.head(1)
+           df=pd.DataFrame(df,columns=['TOP5_Net_OI','TOP10_Net_OI','TOP20_Net_OI']) 
+        return df
+    def concatdata(x,l,z):
+     if x is not None:
+             x.reset_index(drop=True,inplace=True)
+             y=top_netOI(date,l,x.iloc[0,3])
+             if y is not None:
+              y.reset_index(drop=True,inplace=True)
+             x=pd.concat([x,y],axis=1,join_axes=[cu.index])
+             z.append(x)
+             k= pd.concat(z,ignore_index=True)
+             k=pd.DataFrame(k,columns=['Date','PRODUCTID','PRODUCTNAME','DELIVERYMONTH','OPENPRICE','HIGHESTPRICE','LOWESTPRICE','CLOSEPRICE','SETTLEMENTPRICE','VOLUME','OPENINTEREST','TOP5_Net_OI','TOP10_Net_OI','TOP20_Net_OI'])
+             return k
+    
+    
+                     
+    #def concatdata(x):
+         #if x is not None:   
+             #if len(x)==0:
+              #return None
+             #elif len(x)==1:
+              #return x[0]
+             #else:
+              #y=pd.concat([x[0],x[1]])
+              #for i in range(2,len(x)):
+               #y=pd.concat([y,x[i]])
+              #y.sort(columns=['Date'],inplace=True)
+              #return y
+         #else:
+          #return None            
+       
+    cus=[]
+    als=[]
+    zns=[]
+    nis=[]
+    aus=[]
+    ags=[]
+    rbs=[]
+    hcs=[]
+    bus=[]
+    rus=[]
+    start,end=Entry1.get(),Entry2.get()          
+    for date in make_date_range(start,end):
+            response=getDayData(date)
+            if response is False:
+             df=None
+            elif len(response)==0:
+             df=None  
+            else:    
+             df=pd.DataFrame(response)
+             df["Date"]=date           
+             cu=getContract('cu')
+             al=getContract('al')
+             zn=getContract('zn')
+             ni=getContract('ni')
+             au=getContract('au')
+             ag=getContract('ag')
+             rb=getContract('rb')
+             hc=getContract('hc')
+             bu=getContract('bu')
+             ru=getContract('ru')
+             cuss=concatdata(cu,'cu',cus)
+             alss=concatdata(al,'al',als)
+             znss=concatdata(zn,'zn',zns)
+             niss=concatdata(ni,'ni',nis)
+             auss=concatdata(au,'au',aus)
+             agss=concatdata(ag,'ag',ags)
+             rbss=concatdata(rb,'rb',rbs)
+             hcss=concatdata(hc,'hc',hcs)
+             buss=concatdata(bu,'bu',bus)
+             russ=concatdata(ru,'ru',rus)
+    if cuss is not None:
+            writer = pd.ExcelWriter("SHFE_HISDATA"+start+"to"+end+".xlsx",engine='xlsxwriter') 
+    if cuss is not None:
+            cuss.to_excel(writer,"cu",index=False)
+    if alss is not None:
+            alss.to_excel(writer,"al",index=False)
+    if znss is not None:
+            znss.to_excel(writer,"zn",index=False)
+    if niss is not None:
+            niss.to_excel(writer,"ni",index=False)
+    if auss is not None:
+            auss.to_excel(writer,"au",index=False)
+    if agss is not None:
+            agss.to_excel(writer,"ag",index=False)
+    if rbss is not None:
+            rbss.to_excel(writer,"rb",index=False)
+    if hcss is not None:
+            hcss.to_excel(writer,"hc",index=False)
+    if buss is not None:
+            buss.to_excel(writer,"bu",index=False)
+    if russ is not None:
+            russ.to_excel(writer,"ru",index=False)
+   
+            writer.save()
+
+button1=tk.Button(win, text="取得活躍合約歷史資料", command=clickgetdata)
+label1.grid(row=1,column=1)
+message1.grid(row=2,column=1)
+message2.grid(row=2,column=2)
+Entry1.grid(row=3,column=1)
+Entry2.grid(row=3,column=2)
+button1.grid(row=3,column=3)
+win.mainloop() 
