@@ -14,7 +14,9 @@ x<-cu[2:1598,c(4,5)]
 k<-VARselect(x,lag.max = 10, type = c("const"),
              season = NULL, exogen = NULL)
 y<-VAR(x, p =k$selection[3], type = c("const"))
-z<-causality(y,names(cu[5]))
+summary(y)
+z<-causality(y, cause=names(cu[8]))
+z
 
 e<-egcm(cu[,4],cu[,3])
 plot(e)
@@ -34,4 +36,8 @@ VARselect(x,lag.max = 20, type = c("const"),
 y<-VAR(x, p =k$selection[1], type = c("const"))
 z<-causality(y, cause =2)
 vecm<-VECM(x, lag = 2, r=1,include = c("const"),
-             beta = NULL, estim = c("ML"), LRinclude = c("const")
+             beta = NULL, estim = c("ML"), LRinclude = c("const"), exogen = NULL)
+
+
+
+
