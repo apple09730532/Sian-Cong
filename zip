@@ -1,0 +1,4 @@
+import requests, zipfile, StringIO
+response = requests.get('https://www.taifex.com.tw/DailyDownload/DailyDownloadCSV_B/Daily_2017_03_09_B.zip')
+zipDocument = zipfile.ZipFile(StringIO.StringIO(response.content))
+zipDocument.extractall("C:\Users\user\Documents")
