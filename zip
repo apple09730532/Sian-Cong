@@ -1,4 +1,12 @@
 import requests, zipfile, StringIO
-response = requests.get('https://www.taifex.com.tw/DailyDownload/DailyDownloadCSV_B/Daily_2017_03_09_B.zip')
-zipDocument = zipfile.ZipFile(StringIO.StringIO(response.content))
-zipDocument.extractall("C:\Users\user\Documents")
+
+def getDayData1(date):
+            try:
+               response = requests.get("https://www.taifex.com.tw/DailyDownload/DailyDownloadCSV_B/Daily_"+date+"_B.zip")
+               zipDocument = zipfile.ZipFile(StringIO.StringIO(response.content))
+               return zipDocument
+            except:
+                return False
+response=getDayData1("2017_02_24")
+if response is not False:
+    response.extractall("C:\Users\user\Documents")
