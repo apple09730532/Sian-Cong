@@ -1,0 +1,40 @@
+library(openxlsx)
+ x<-read.xlsx("Z:\\2017 3-6月 郭獻聰、范振強、季成燁\\郭獻聰\\STF_Roll\\宏達電STF_roll.xlsx",detectDates=TRUE,skipEmptyRows=TRUE)
+ count=numeric(length(x$txtime))
+ roll_contract='HCFC7/D7            '
+ bp=0
+ ap=0
+ tp=0
+ for (i in c(3:length(x$txtime))){
+   if    (
+         (x$Pid[i]==roll_contract)&&
+         (x$Pid[i-1]!=x$Pid[i-2])&&
+         (x$txtime[i-1]==x$txtime[i-2])&&
+         (is.na(x$txlots[i])==TRUE)&&
+         (is.na(x$txlots[i-1])==FALSE)&&
+         (is.na(x$txlots[i-2])==FALSE)
+         )
+       {
+          count[i]=i
+          count[i-1]=i-1
+          count[i-2]=i-2
+          
+          if(abs(x$txprice[i-1]-x$txprice[i-2])==ceiling(abs(x$bp[i])*10)/10)
+            {
+            bp=bp+min(c(x$txlots[i-1],x$txlots[i-1]))
+          }
+          else 
+          {
+            ap=ap+min(c(x$txlots[i-1],x$txlots[i-1]))
+            
+          }
+          
+          
+          
+       }
+ }
+ y<-x[count[count!=0],]
+ tp=max(x[x$pid==roll_contract]$pidheat)
+z<-x[x$Pid==roll_contract,]$pidhead
+z[is.na(z)]<-0
+max(z) 
