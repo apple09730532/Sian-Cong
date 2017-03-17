@@ -1,0 +1,73 @@
+library(openxlsx)
+library(stringr) 
+library(sqldf)
+total<-read.xlsx("Z:\\2017 3-6月 郭獻聰、范振強、季成燁\\郭獻聰\\STF_Roll_Total.xlsx",detectDates=TRUE,skipEmptyRows=TRUE)
+total<-total[is.na(total$商品代號)==FALSE,]
+total$商品代號<-str_trim(total$商品代號)
+total<-total[total$商品代號!='TX',]
+total<-total[total$商品代號!='MTX',]
+total<-total[total$商品代號!='TE',]
+total<-total[total$商品代號!='TF',]
+individual<-read.xlsx("Z:\\2017 3-6月 郭獻聰、范振強、季成燁\\郭獻聰\\STF_Roll_individual.xlsx",detectDates=TRUE,skipEmptyRows=TRUE)
+individual<-individual[is.na(individual$商品代號)==FALSE,]
+individual$商品代號<-str_trim(individual$商品代號)
+individual<-individual[individual$商品代號!='TX',]
+individual<-individual[individual$商品代號!='MTX',]
+individual<-individual[individual$商品代號!='TE',]
+individual<-individual[individual$商品代號!='TF',]
+individual<-sqldf('SELECT 交易日期,商品代號,sum(case WHEN 屬價差對價差成交者=="*" then 成交數量 else 0 end)/4 AS 價差市場對價成交,sum(case WHEN 屬價差對價差成交者==" " then 成交數量 else 0 end)/4 AS 價差衍生單成交 FROM individual GROUP BY 交易日期,商品代號 ')
+colnames(individual)<-c("交易日期","商品代號","價差市場對價成交","價差衍生單成交")
+x<-merge(total, individual, by =c("交易日期","商品代號"), all.total = T) 
+z<-matrix(NA, nrow=61, ncol=11, byrow=TRUE)
+colnames(z) <- c("日期", "第一名", "第二名","第三名", "第四名", "第五名", "第六名","第七名", "第八名", "第九名", "第十名")
+df1<-data.frame(z)
+df2<-data.frame(z)
+for (i in c(0:60)){
+  date<-gsub("-","", Sys.Date()-i)
+  if (length(x[x$交易日期==date,]$交易日期)!=0){
+    y<-x[x$交易日期==date,]
+    y["價差委託成交量排名"] <- NA
+    y["價差委託成交比率排名"] <- NA
+    y$價差委託成交量排名<-rank(-y$價差委託成交量,ties.method ="first")
+    y$價差委託成交比率排名<-rank(-y$`價差委託成交比率(%)`,ties.method ="first")
+    df1$日期[i]=date
+    df1$第一名[i]=paste(y[y$價差委託成交量排名==1,]$商品代號,as.character(y[y$價差委託成交量排名==1,]$價差委託成交量),sep='/')
+    df1$第二名[i]=paste(y[y$價差委託成交量排名==2,]$商品代號,as.character(y[y$價差委託成交量排名==2,]$價差委託成交量),sep='/')
+    df1$第三名[i]=paste(y[y$價差委託成交量排名==3,]$商品代號,as.character(y[y$價差委託成交量排名==3,]$價差委託成交量),sep='/')
+    df1$第四名[i]=paste(y[y$價差委託成交量排名==4,]$商品代號,as.character(y[y$價差委託成交量排名==4,]$價差委託成交量),sep='/')
+    df1$第五名[i]=paste(y[y$價差委託成交量排名==5,]$商品代號,as.character(y[y$價差委託成交量排名==5,]$價差委託成交量),sep='/')
+    df1$第六名[i]=paste(y[y$價差委託成交量排名==6,]$商品代號,as.character(y[y$價差委託成交量排名==6,]$價差委託成交量),sep='/')
+    df1$第七名[i]=paste(y[y$價差委託成交量排名==7,]$商品代號,as.character(y[y$價差委託成交量排名==7,]$價差委託成交量),sep='/')
+    df1$第八名[i]=paste(y[y$價差委託成交量排名==8,]$商品代號,as.character(y[y$價差委託成交量排名==8,]$價差委託成交量),sep='/')
+    df1$第九名[i]=paste(y[y$價差委託成交量排名==9,]$商品代號,as.character(y[y$價差委託成交量排名==9,]$價差委託成交量),sep='/')
+    df1$第十名[i]=paste(y[y$價差委託成交量排名==10,]$商品代號,as.character(y[y$價差委託成交量排名==10,]$價差委託成交量),sep='/')
+    
+    df2$日期[i]=date
+    df2$第一名[i]=paste(y[y$價差委託成交比率排名==1,]$商品代號,as.character(y[y$價差委託成交比率排名==1,]$'價差委託成交比率(%)'),sep='/')
+    df2$第二名[i]=paste(y[y$價差委託成交比率排名==2,]$商品代號,as.character(y[y$價差委託成交比率排名==2,]$'價差委託成交比率(%)'),sep='/')
+    df2$第三名[i]=paste(y[y$價差委託成交比率排名==3,]$商品代號,as.character(y[y$價差委託成交比率排名==3,]$'價差委託成交比率(%)'),sep='/')
+    df2$第四名[i]=paste(y[y$價差委託成交比率排名==4,]$商品代號,as.character(y[y$價差委託成交比率排名==4,]$'價差委託成交比率(%)'),sep='/')
+    df2$第五名[i]=paste(y[y$價差委託成交比率排名==5,]$商品代號,as.character(y[y$價差委託成交比率排名==5,]$'價差委託成交比率(%)'),sep='/')
+    df2$第六名[i]=paste(y[y$價差委託成交比率排名==6,]$商品代號,as.character(y[y$價差委託成交比率排名==6,]$'價差委託成交比率(%)'),sep='/')
+    df2$第七名[i]=paste(y[y$價差委託成交比率排名==7,]$商品代號,as.character(y[y$價差委託成交比率排名==7,]$'價差委託成交比率(%)'),sep='/')
+    df2$第八名[i]=paste(y[y$價差委託成交比率排名==8,]$商品代號,as.character(y[y$價差委託成交比率排名==8,]$'價差委託成交比率(%)'),sep='/')
+    df2$第九名[i]=paste(y[y$價差委託成交比率排名==9,]$商品代號,as.character(y[y$價差委託成交比率排名==9,]$'價差委託成交比率(%)'),sep='/')
+    df2$第十名[i]=paste(y[y$價差委託成交比率排名==10,]$商品代號,as.character(y[y$價差委託成交比率排名==10,]$'價差委託成交比率(%)'),sep='/')
+    
+    
+    
+    
+    
+  }
+}
+df1<-df1[is.na(df1$日期)==FALSE,]
+df2<-df2[is.na(df2$日期)==FALSE,]
+df1<-df1[order(-as.numeric(df1$日期)),]
+df2<-df2[order(-as.numeric(df2$日期)),]
+
+
+range<-paste(min(df1$日期),max(df1$日期),sep='-')
+name1<-paste("Z:\\2017 3-6月 郭獻聰、范振強、季成燁\\郭獻聰\\STF_Roll_rank\\",range,"每日前10大價差委託成交.csv",sep = "")
+name2<-paste("Z:\\2017 3-6月 郭獻聰、范振強、季成燁\\郭獻聰\\STF_Roll_rank\\",range,"每日前10大價差委託比率.csv",sep = "")
+write.table(df1, file = name1, sep = ",",row.names=FALSE)
+write.table(df2, file = name2, sep = ",",row.names=FALSE)
