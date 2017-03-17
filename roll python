@@ -1,0 +1,59 @@
+# -*- coding: utf-8 -*-
+"""
+Spyder Editor
+
+This is a temporary script file.
+"""
+# -*- coding: utf-8 -*-
+import requests
+import zipfile
+import StringIO
+import datetime
+import pandas
+
+def getDayData1(date):
+            try:
+               response = requests.get("https://www.taifex.com.tw/DailyDownload/DailyDownloadCSV_B/Daily_"+date+"_B.zip")
+               zipDocument = zipfile.ZipFile(StringIO.StringIO(response.content))
+               return zipDocument
+            except:
+                return False
+def getDayData2(date):
+            try:
+               response = requests.get("http://www.taifex.com.tw/DailyDownload/DailyDownloadCSV_C/Daily_"+date+"_C.zip")
+               zipDocument = zipfile.ZipFile(StringIO.StringIO(response.content))
+               return zipDocument
+            except:
+                return False
+def read1(date):
+            try:
+               response =  pandas.read_csv('C:\Users\user3\Documents\STF_Roll\Daily_'+date+'_B.csv',encoding='cp950',header=1)
+               return response
+            except:
+                return False
+def read2(date):
+            try:
+               response =  pandas.read_csv('C:\Users\user3\Documents\STF_Roll\Daily_'+date+'_C.csv',encoding='cp950')
+               return response
+            except:
+                return False            
+df1 = pandas.DataFrame()
+df2 = pandas.DataFrame()
+for i in range(0,60 ,1):
+       date=(datetime.date.today() - datetime.timedelta(days=i)).strftime('%Y_%m_%d')
+       response1= getDayData1(date)
+       response2= getDayData2(date)
+       if response1 is not False:
+        response1.extractall("C:\Users\user3\Documents\STF_Roll")
+       if response2 is not False:
+        response2.extractall("C:\Users\user3\Documents\STF_Roll") 
+       data1 = read1(date)
+       data2 = read2(date)
+       if data1 is not False:
+        df1=pandas.concat([df1,data1],ignore_index=True)
+       if data2 is not False:
+        df2=pandas.concat([df2,data2],ignore_index=True) 
+writer1 = pandas.ExcelWriter("STF_Roll_Total.xlsx",engine='xlsxwriter')
+writer2 = pandas.ExcelWriter("STF_Roll_individual.xlsx",engine='xlsxwriter')
+df1.to_excel(writer1,index=False)
+df2.to_excel(writer2,index=False)
