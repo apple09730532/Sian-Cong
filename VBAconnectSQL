@@ -1,0 +1,147 @@
+Dim oConn As ADODB.Connection
+
+Dim rs As ADODB.Recordset
+
+Dim fld As ADODB.Field
+
+Dim mssql As String
+
+Dim row As Integer
+
+Dim Col As Integer
+
+Dim ws As ThisWorkbook
+
+Set ws = ThisWorkbook
+
+Application.ScreenUpdating = False
+
+Set oConn = New ADODB.Connection
+
+Set rs = New ADODB.Recordset
+
+mssql = "Select P.Firstname,P.lastname,st.name as Territoryname, " & _
+
+"sum(s.salesYTD) as CurrentYearSales, " & _
+
+"Sum(s.saleslastyear) As LastyearSales   " & _
+
+"from Sales.salesperson s " & _
+
+"inner join person.person p on p.businessEntityid=s.businessEntityid " & _
+
+"inner join sales.salesterritory st on st.territoryid=s.territoryid " & _
+
+"group by P.Firstname,P.lastname,st.name "
+
+oConn.ConnectionString = "driver={SQL Server};" & _
+
+"server=HP;authenticateduser = TRUE;database=Adventureworks2008R2"
+
+ 
+
+'======If you have then change your user name and password here=====
+
+ 
+
+'    oConn.ConnectionString = "driver={SQL Server};" & _
+
+'"server=Servername;uid=Username;pwd=Password;database=databasename"
+
+'=====================================================================
+
+ 
+
+oConn.ConnectionTimeout = 30
+
+oConn.Open
+
+rs.Open mssql, oConn
+
+If rs.EOF Then
+
+MsgBox "No matching records found."
+
+ 
+
+rs.Close
+
+oConn.Close
+
+Exit Sub
+
+ 
+
+End If
+
+ 
+
+row = 5
+
+Col = 1
+
+ 
+
+For Each fld In rs.Fields
+
+Sheet2.Cells(row, Col).Value = fld.Name
+
+Col = Col + 1
+
+Next
+
+ 
+
+rs.MoveFirst
+
+ 
+
+row = row + 1
+
+ 
+
+Do While Not rs.EOF
+
+ 
+
+Col = 1
+
+ 
+
+For Each fld In rs.Fields
+
+ 
+
+Sheet2.Cells(row, Col).Value = fld
+
+ 
+
+Col = Col + 1
+
+ 
+
+Next
+
+ 
+
+row = row + 1
+
+ 
+
+rs.MoveNext
+
+ 
+
+Loop
+
+ 
+
+ 
+
+rs.Close
+
+ 
+
+oConn.Close
+
+End Sub
