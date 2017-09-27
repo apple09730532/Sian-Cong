@@ -1,0 +1,4 @@
+import urllib
+date='106/09/25'
+url='http://www.tpex.org.tw/web/stock/aftertrading/odd_stock/odd_download.php?l=zh-tw&d='+date+'&s=0,asc,0'
+urllib.request.urlretrieve(url, 'OTC'+date+'.csv')
