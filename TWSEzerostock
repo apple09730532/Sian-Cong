@@ -1,0 +1,4 @@
+import urllib
+date='20170924'
+url='http://www.tse.com.tw/exchangeReport/TWT53U?response=csv&date='+date+'&selectType=ALL'
+urllib.request.urlretrieve(url, 'TWSE'+date+'.csv')
