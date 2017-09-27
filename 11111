@@ -1,0 +1,6 @@
+import csv
+import requests
+
+response = requests.get('http://www.tse.com.tw/exchangeReport/TWT53U?response=csv&date=20120102&selectType=ALL')
+x=response.content.decode('cp950','ignore')
+to.csv(x)
