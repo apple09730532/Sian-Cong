@@ -1,4 +1,31 @@
+import datetime
 import urllib
-date='106/09/25'
-url='http://www.tpex.org.tw/web/stock/aftertrading/odd_stock/odd_download.php?l=zh-tw&d='+date+'&s=0,asc,0'
-urllib.request.urlretrieve(url, 'OTC'+date+'.csv')
+import pandas as pd
+def read(date):
+            try:
+               response =  pd.read_csv('C:\\Users\\user\\Documents\\OTC'+date+'.csv',encoding='cp950',header=2)
+               response=response.drop(response.tail(2).index)
+               response['日期']=date
+               return response
+            except:
+                return False
+
+data=pd.DataFrame()
+for i in range(1,2500,1):
+        #d=datetime.datetime.now()
+        today=datetime.date.today()
+        ROCdate=datetime.date(day=today.day, month=today.month, year=106)
+        date=(ROCdate - datetime.timedelta(days=i)).strftime('%Y/%m/%d')
+        date=date[1:]  
+        name=(ROCdate - datetime.timedelta(days=i)).strftime('%Y%m%d')
+        name=name[1:]
+   
+        url='http://www.tpex.org.tw/web/stock/aftertrading/odd_stock/odd_download.php?l=zh-tw&d='+date+'&s=0,asc,0'
+        urllib.request.urlretrieve(url, 'OTC'+name+'.csv')
+        df=read(name)
+        if df is not False:
+         data=pd.concat([data,df])
+        #x=datetime.datetime.now()
+        #while (x-d<datetime.timedelta(0,1, 0)):
+         #x=datetime.datetime.now()
+data.to_csv("TWSEzerostock.csv",index=False)
