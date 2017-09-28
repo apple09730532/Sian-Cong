@@ -1,4 +1,26 @@
+import datetime
 import urllib
-date='20170924'
-url='http://www.tse.com.tw/exchangeReport/TWT53U?response=csv&date='+date+'&selectType=ALL'
-urllib.request.urlretrieve(url, 'TWSE'+date+'.csv')
+import pandas as pd
+def read(date):
+            try:
+               response =  pd.read_csv('C:\\Users\\14879\\Documents\\TWSE'+date+'.csv',encoding='cp950',header=1)
+               response=response.drop(response.tail(6).index)
+               response=response.drop('Unnamed: 10',1)
+               response['日期']=date
+               return response
+            except:
+                return False
+
+data=pd.DataFrame()
+for i in range(1,2500 ,1):
+        d=datetime.datetime.now()
+        date=(datetime.date.today() - datetime.timedelta(days=i)).strftime('%Y%m%d')
+        url='http://www.tse.com.tw/exchangeReport/TWT53U?response=csv&date='+date+'&selectType=ALL'
+        urllib.request.urlretrieve(url, 'TWSE'+date+'.csv')
+        df=read(date)
+        if df is not False:
+         data=pd.concat([data,df])
+        x=datetime.datetime.now()
+        while (x-d<datetime.timedelta(0,1, 0)):
+         x=datetime.datetime.now()
+data.to_csv("TWSEzerostock.csv",index=False)
