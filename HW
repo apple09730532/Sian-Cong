@@ -1,0 +1,51 @@
+library(quantmod)
+#資料匯入與處理
+importdate<-function(location){
+  data<-read.table(location,sep=',')
+  data<-data[2:length(data[,1]),]
+  data[,1]<-as.POSIXct(as.character(data[,1]))
+  data[,2]<-as.numeric(as.character(data[,2]))
+  data[,3]<-as.numeric(as.character(data[,3]))
+  data[,4]<-as.numeric(as.character(data[,4]))
+  data[,5]<-as.numeric(as.character(data[,5]))
+  colnames(data)=c("Date","Open","High","Low","Close")
+  data["Time"]<-strftime(data$Date, format="%H:%M:%S")
+  data$Date<-strftime(data$Date, format="%Y/%m/%d")
+  return(data)
+}
+TXF<-importdate("Z:\\SHARE\\USER\\獻聰\\教育訓練\\台指近月一分鐘線.csv")
+#撰寫策略
+TXF["ma20"]<-runMean(TXF$Close,n=20)#計算20根k棒的移動平均
+TXF["profit"]<-0
+TXF["sign"]<-0
+TXF["signdiff"]<-NA
+TXF["cost"]<-0
+
+x=0
+for (i in 2:(length(TXF$Date)-2)){
+  if(TXF$Time[i]=="09:00:00"){
+    x=1
+  }
+  if(TXF$Time[i]=="13:25:00"){
+    x=0
+  }
+  if(is.na(TXF$ma20[i])==FALSE & is.na(TXF$ma60[i])==FALSE&x==1){
+    if(TXF$ma20[i]>=TXF$ma60[i]){
+      TXF$sign[i]<-1
+    }
+    if(TXF$ma20[i]<TXF$ma60[i]){
+      TXF$sign[i]<-(-1)
+    }
+  }
+  TXF$profit[i+2]<-(TXF$Open[i+2]-TXF$Open[i+1])*TXF$sign[i]*200 
+  TXF$signdiff[i]<- TXF$sign[i]- TXF$sign[i-1]
+  TXF$cost[i]<-abs(TXF$signdiff[i-1])*(20.432+TXF$Open[i]*200*0.00002)#計算成本
+}
+
+
+
+
+plot(cumsum(TXF$profit),type='l')
+
+
+
