@@ -1,0 +1,163 @@
+library(writexl)
+total<-data.frame()
+count=0
+days=0
+while(count<5){
+   x=Sys.Date()-days
+   location1<-paste0("D:\\histick\\",x,"\\stock.csv")
+   location2<-paste0("D:\\histick\\",x,"\\otc_stock.csv")
+   if(file.exists(location1)==TRUE & file.exists(location2)==TRUE ){
+    data<-rbind(read.table(location1,sep=','),read.table(location2,sep=','))
+    stockname<-read.table("Z:\\SHARE\\USER\\獻聰\\STF\\大單名單.csv",sep=',',header = TRUE)
+    stockname$StkCode<-as.character(stockname$StkCode)
+    data<-data[,c(-2,-8:-15,-18:-28)]
+    data[,2]<-as.character(data[,2])
+    colnames(data)=c("txTime","Pid","Dp","DV","Bp1","Bv1","Sp1","Sv1")
+    data["date"]<-as.Date(x)
+y<-data.frame()
+for(i in stockname$StkCode){
+z<-data[data$Pid==i,]
+y<-rbind(z, y)
+}
+data<-y[y$txTime>90004000 &y$txTime<132500000 ,]
+total<-rbind(total, data)
+
+days=days+1
+count=count+1
+}
+else{
+  days=days+1
+}
+}
+
+criteria_both<-function(x,y){
+  data=c(sum(x$rate[x$sumvolume>y]*x$sign[x$sumvolume>y],na.rm = TRUE)
+         ,max(x$rate[x$sumvolume>y]*x$sign[x$sumvolume>y],na.rm = TRUE)
+         ,min(x$rate[x$sumvolume>y]*x$sign[x$sumvolume>y],na.rm = TRUE)
+         ,sum(abs(x$sign[x$sumvolume>y])))
+  return(data)
+}
+criteria_up<-function(x,y){
+  data=c(sum(x$rate[x$sign*x$sumvolume>y],na.rm = TRUE)
+         ,max(x$rate[x$sign*x$sumvolume>y],na.rm = TRUE)
+         ,min(x$rate[x$sign*x$sumvolume>y],na.rm = TRUE)
+         ,sum(abs(x$sign[x$sign*x$sumvolume>y])))
+  return(data)
+}
+criteria_down<-function(x,y){
+  data=c((sum(x$rate[x$sign*x$sumvolume<y],na.rm = TRUE))
+         ,min(x$rate[x$sign*x$sumvolume<y],na.rm = TRUE)
+         ,max(x$rate[x$sign*x$sumvolume<y],na.rm = TRUE)
+         ,sum(abs(x$sign[x$sign*x$sumvolume<y])))
+  return(data)
+}
+
+
+
+for(j in stockname$StkCode){
+stock<-total[total$Pid==j,]
+stock["sign"]<-0
+stock["sumvolume"]<-0
+stock["rate"]<-0
+for (i in 2: length(stock$txTime)){
+  if(stock$Dp[i]==stock$Sp[i] & stock$Dp[i-1]==stock$Sp[i-1]){
+    stock$sign[i]=1
+    stock$sumvolume[i]<-stock$DV[i]+stock$DV[i-1]
+    stock$rate[i]<-stock$Dp[(stock$txTime-stock$txTime[i])>100000 & stock$Dp!=0&stock$date==stock$date[i]][1]/stock$Dp[i]-1
+  }
+  if(stock$Dp[i]==stock$Bp[i] & stock$Dp[i-1]==stock$Bp[i-1]){
+    stock$sign[i]=-1
+    stock$sumvolume[i]<-stock$DV[i]+stock$DV[i-1]
+    stock$rate[i]<-stock$Dp[(stock$txTime-stock$txTime[i])>100000 & stock$Dp!=0&stock$date==stock$date[i]][1]/stock$Dp[i]-1
+  }
+}
+assign(paste0('stock',j),stock)
+}
+
+for(j in stockname$StkCode){
+for(k in as.character(unique(total$date))){
+  stock<-total[total$Pid==j&total$date==k,]
+  stock["sign"]<-0
+  stock["sumvolume"]<-0
+  stock["rate"]<-0
+  for (i in 2: length(stock$txTime)){
+    if(stock$Dp[i]==stock$Sp[i] & stock$Dp[i-1]==stock$Sp[i-1]){
+      stock$sign[i]=1
+      stock$sumvolume[i]<-stock$DV[i]+stock$DV[i-1]
+      stock$rate[i]<-stock$Dp[(stock$txTime-stock$txTime[i])>100000 & stock$Dp!=0&stock$date==stock$date[i]][1]/stock$Dp[i]-1
+    }
+    if(stock$Dp[i]==stock$Bp[i] & stock$Dp[i-1]==stock$Bp[i-1]){
+      stock$sign[i]=-1
+      stock$sumvolume[i]<-stock$DV[i]+stock$DV[i-1]
+      stock$rate[i]<-stock$Dp[(stock$txTime-stock$txTime[i])>100000 & stock$Dp!=0&stock$date==stock$date[i]][1]/stock$Dp[i]-1
+    }
+  }
+  range1=round(max(stock$sumvolume),-2)-50
+  if(range1>=0){
+  criteria<-matrix(nrow =range1/50+1 ,ncol =8)
+  criteria[,1]=seq(0,range1,50)
+  criteria[,2]=seq(0,range1,50)/sum(stock$DV)
+  for(i in seq(0,range1,50)){
+    criteria[criteria[,1]==i,3]=criteria_both(stock,i)[1]
+    criteria[criteria[,1]==i,4]=criteria_both(stock,i)[2]
+    criteria[criteria[,1]==i,5]=criteria_both(stock,i)[3]
+    criteria[criteria[,1]==i,6]=criteria_both(stock,i)[4]
+    criteria[criteria[,1]==i,7]=criteria_both(stock,i)[1]-criteria_both(stock,i)[2]+criteria_both(stock,i)[3]
+    criteria[criteria[,1]==i,8]=(criteria_both(stock,i)[1]-criteria_both(stock,i)[2]+criteria_both(stock,i)[3])/criteria_both(stock,i)[4]
+  }
+  colnames(criteria)<-c('vulume','volumeratio','sumprofit','maxprofit','minprofit','times','adjsumprotfit','adjsumprotfit/times')
+  }
+  else{
+    criteria<-data.frame()
+  }
+  assign(paste0('criteria',j,'_',k),as.data.frame(criteria))
+  assign(paste0('stock',j,'_',k),stock)
+  write.xlsx2(stock,paste0("D:\\stock\\",paste0('stock',j),".xlsx"),sheetName=k, row.names=FALSE,append=TRUE)
+  write.xlsx2(as.data.frame(criteria),paste0("D:\\stock\\",paste0('criteria',j),".xlsx"),sheetName=k, row.names=FALSE,append=TRUE)
+}
+}
+volume<-matrix(nrow =length(stockname$StkCode)+1,ncol =length(unique(total$date))+1)
+volume[2:(length(stockname$StkCode)+1),1]<-stockname$StkCode
+volume[1,2:(length(unique(total$date))+1)]<-unique(as.character(total$date))
+volume[1,1]<-'PID'
+for(j in stockname$StkCode){
+    for(i in unique(as.character(total$date)) ){
+       volume[volume[,1]==j,volume[1,]==i]<-sum(total$DV[total$Pid==j&total$date==i])
+     }
+   }
+colnames(volume)<-volume[1,]
+volume<-as.data.frame(volume[-1,])
+volume[,2]<-as.numeric(as.character(volume[,2]))
+volume[,3]<-as.numeric(as.character(volume[,3]))
+volume[,4]<-as.numeric(as.character(volume[,4]))
+volume[,5]<-as.numeric(as.character(volume[,5]))
+volume[,6]<-as.numeric(as.character(volume[,6]))
+volume['maxvolume']<-0
+volume['minvolume']<-0
+volume['max/min']<-0
+
+for(i in 1:length(volume$PID)){
+  
+  volume$maxvolume[i]<-max(volume[i,2:6])
+  volume$minvolume[i]<-min(volume[i,2:6])
+  volume$`max/min`[i]<-max(volume[i,2:6])/min(volume[i,2:6])
+  
+}
+
+
+stock<-total[total$Pid=='2409'&total$date=='2017-10-30',]
+stock["sign"]<-0
+stock["sumvolume"]<-0
+stock["rate"]<-0
+for (i in 2: length(stock$txTime)){
+  if(stock$Dp[i]==stock$Sp[i] & stock$Dp[i-1]==stock$Sp[i-1]){
+    stock$sign[i]=1
+    stock$sumvolume[i]<-stock$DV[i]+stock$DV[i-1]
+    stock$rate[i]<-stock$Dp[(stock$txTime-stock$txTime[i])>100000 & stock$Dp!=0&stock$date==stock$date[i]][1]/stock$Dp[i]-1
+  }
+  if(stock$Dp[i]==stock$Bp[i] & stock$Dp[i-1]==stock$Bp[i-1]){
+    stock$sign[i]=-1
+    stock$sumvolume[i]<-stock$DV[i]+stock$DV[i-1]
+    stock$rate[i]<-stock$Dp[(stock$txTime-stock$txTime[i])>100000 & stock$Dp!=0&stock$date==stock$date[i]][1]/stock$Dp[i]-1
+  }
+}
