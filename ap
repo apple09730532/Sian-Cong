@@ -1,0 +1,104 @@
+系統主要功能
+    修改T510傳送現貨大單broadcast給AP的功能，接收資訊源的部分與舊版一致。
+	broadcast 38格式：(38+TID,GroupID,買賣方向, VolumeShift,下單口數)，傳送時機為VolumeShift%>b38
+	broadcast 33格式：(33+TID,GroupID,買賣方向, 3)，傳送時機VolumeShift%>b33
+備註：關於買賣方向的判斷、下單口數以及VolumeShift的算法如下所示。
+細部功能描述
+
+
+
+
+
+
+
+
+
+
+
+
+
+以下參數都可以RELOAD，且均可以在AP上進行修改並且上傳DB的功能
+一、	口數變換邏輯
+    下單口數=公式*MaxLots(四捨五入到整數位)
+
+     公式= 
+、1/(1+exp(-(x-u)/m))
+
+	MaxLots：資料庫設定
+	u：資料庫設定
+	m：資料庫設定
+	y：近n秒內外盤的平均，算法如下：
+近n秒內underlying 的sum(成交量* B/S flag(內盤=-1、外盤=1))/abs(sum(B/S flag)) (sum是總合的意思)
+	x：abs(y)，y取絕對值。
+	n：資料庫設定
+	MaxLots買賣分開，根據y的正負值決定要代買邊的MaxLots還是賣邊MaxLots，若y=0則略過。
+	
+Ex：
+公式參數：u=75、m=25、n=25
+買邊的MaxLots=100
+         賣邊的MaxLots=90
+txTime	Dp	Dv	Bp1	Bv1	Sp1	Sv1	B/S flag	Dv* B/S flag	y
+92836583	0	0	50.1	56	50.2	51	0	0	
+92841708	50.1	1	50.1	56	50.2	52	-1	-1	
+92846809	50.2	1	50.1	58	50.2	50	1	1	
+92851914	50.2	1	50.1	58	50.2	50	1	1	
+92857020	50.2	2	50.1	70	50.2	58	1	2	0.75
+由上表的例子y=25秒內sum(Dv* B/S flag)/sum(abs(B/S flag) )=3/4=0.75,x=abs(y)=0.75
+由於y>0此時要代入買邊的MaxLots=100。下單口數=100*公式結果=4.879972口四捨五入到5口
+
+
+二、	VolumeShift
+    VolumeShift%=公式*MaxVolumeShift%
+    VolumeShift= VolumeShift%*S*Sign(y)
+
+   公式= 1/(1+exp(-(x-u)/m))(此公式的參數與調整口數的參數共用)
+
+	MaxVolumeShift%：資料庫設定
+	S：現貨成交價
+	u：資料庫設定
+	m：資料庫設定
+	y：近n秒內外盤的平均算法如下：
+近n秒內underlying 的sum(成交量* B/S flag(內盤=-1、外盤=1))/abs(sum(B/S flag)) (sum是總合的意思)
+	Sign(y)為y的方向，y大於0則Sign(y)為1，y小於0則Sign(y)為-1，y等於0 則Sign(y)為0
+	x：abs(y)，y取絕對值。
+	n：資料庫設定
+	MaxVolumeShift買賣分開，根據y的正負值決定要帶買邊的MaxVolumeShift還是賣邊MaxVolumeShift，若y=0則略過。
+Ex：
+         公式參數：u=75、m=25、n=25
+         買邊的MaxVolumeShift%=0.5%
+         賣邊的MaxVolumeShift%=0.6%
+txTime	Dp	Dv	Bp1	Bv1	Sp1	Sv1	B/S flag	Dv* B/S flag	y
+92836583	0	0	50.1	56	50.2	51	0	0	
+92841708	50.1	1	50.1	56	50.2	52	-1	-1	
+92846809	50.2	1	50.1	58	50.2	50	1	1	
+92851914	50.2	1	50.1	58	50.2	50	1	1	
+92857020	50.2	2	50.1	70	50.2	58	1	2	0.75
+由上表的例子y=25秒內sum(Dv* B/S flag)/sum(B/S flag )=3/4=0.75,x=abs(y)=0.75
+，由於y>0此時要代入買邊的MaxVolumeShift%=0.5%，此時的VolumeShift=100*公式結果*S(50.2)*sign(y)= 0.0122487
+
+
+
+
+
+
+三、	傳BROADCAST
+1、	broadcast 38：
+	If  VolumeShift%>z then發送broadcast 38，z為使用者在AP上設定同時寫入DB。
+	broadcast 38格式：(38+TID,GroupID,B/S, VolumeShift,下單口數)
+        If y>0 then B/S=B, If y<0 then B/S=S, y=0則不傳送。
+2、	broadcast 33：
+	If  VolumeShift%>q then發送broadcast 33，q為使用者在AP上設定同時寫入DB。
+	broadcast 33格式：(33+TID,GroupID,B/S,3)
+        If y>0 then B/S=S, If y<0 then B/S=B, y=0則不傳送(注意：與38相反)。
+EX：
+假設z=0.1%、q=0.2%，GroupID=DU，下單口數為5口：
+1、	VolumeShift%=0.15%，因為VolumeShift%>0.1%(z)但VolumeShift%<0.2%(q)則傳送broadcast38不傳送broadcast33，買邊與賣邊的例子如下：
+Case1(y>0 ,VolumeShift=0.1)：(381240,DU,B, 0.1,5)
+Case2(y<0,VolumeShift=-0.1)：(381240,DU,S,-0.1,5)
+2、	VolumeShift%=0.25%，因為VolumeShift%>0.1%(z)且VolumeShift%>0.2%(q)則同時傳送broadcast38與33，買邊與賣邊的例子如下：
+Case1(y>0 ,VolumeShift=0.1)：(381240,DU,B, 0.1,5),(331240,DU,S,3)
+Case2(y<0,VolumeShift=-0.1)：(381240,DU,S,-0.1,5),(331240,DU,B,3)
+3、	VolumeShift%=0.05%，因為VolumeShift%<0.1%(z)且VolumeShift%<0.2%(q)所以不傳送broadcast。
+四、	防呆限制
+AP寫死防呆值(u>0、m>0、n>0、0<MaxLots、0<MaxVolumeShift)
+AP抓DB防呆(MaxLots<k, MaxVolumeShift<r)k,r為在DB內的防呆值，在AP上設定。
