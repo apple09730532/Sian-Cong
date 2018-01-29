@@ -1,0 +1,42 @@
+library(readxl)
+STOCK <- read_excel("C:/Users/user/Downloads/STOCK.xlsx", sheet = "Sheet1", col_names = FALSE)
+
+
+name<-matrix(nrow = 3,ncol = 187)
+
+for(i in seq(1,934,5)){
+name[1,((i-1)/5+1)]<- substring(STOCK[1,i],1,4)
+x<-STOCK[3:267,i:(i+3)]
+colnames(x)<-c("date","open","close","vwap")
+x<-x[is.na(x$date)==FALSE,]
+x["Pid"]<-substring(STOCK[1,i],1,4)
+x$date<-as.numeric(x$date)
+x$open<-as.numeric(x$open)
+x$close<-as.numeric(x$close)
+x$vwap<-as.numeric(x$vwap)
+x$Pid<-x$Pid
+x["bsflag"]<-0
+    x$bsflag[x$vwap>x$close]=1
+    x$bsflag[x$vwap<x$close]=-1
+x["sign"]<-0
+  for(j in c(2:length(x$date))){
+  if(x$close[j]>x$close[j-1]  ){
+ x$sign[j-1]<-1
+ 
+  }
+  if(x$close[j]<x$close[j-1]  ){
+    x$sign[j-1]<-(-1)
+    
+  }
+  x["result"]<-x$bsflag*x$sign
+  
+  }
+
+
+  name[2,((i-1)/5+1)]<-length(x$result[x$result>=0])
+  name[3,((i-1)/5+1)]<-length(x$result)
+  
+  
+  
+
+}
