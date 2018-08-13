@@ -103,6 +103,44 @@ total["diffsign"]<-0
 for(i in c(2:length(total$date))){
   total$diffsign[i]<-total$sign[i]-total$sign[i-1]
 }
+total["totalprofit"]<-0
+j=0
+q=0
+for(i in c(1:length(total$date))){
+  if(total$diffsign[i]!=0){
+     j=i
+     q=union(q,j)
+    
+  }
+  if(total$sign[i]>0&i!=j){
+    total$totalprofit[i]=-(total$LXF_Sp1[i]/total$LXF_Bp1[j]-1)+(total$HBF_Bp1[i]/total$HBF_Sp1[j]-1)
+  }
+  if(total$sign[i]<0&i!=j){
+    total$totalprofit[i]=(total$LXF_Bp1[i]/total$LXF_Sp1[j]-1)-(total$HBF_Sp1[i]/total$HBF_Bp1[j]-1)
+  }
+
+}
+
+
+plot(total$totalprofit[q[2]+1:q[3]-1],type="l")
+
+output<-matrix(nrow = length(q)-2,ncol = 5)
+
+for(i in c(1:(length(q)-2))){
+  output[i,1]=q[i+1]
+  output[i,2]=q[i+2]
+  output[i,3]=total$totalprofit[q[i+2]-1]
+  output[i,4]=max(total$totalprofit[(q[i+1]+1):(q[i+2]-1)])
+  output[i,5]=min(total$totalprofit[(q[i+1]+1):(q[i+2]-1)])
+  
+}
+output<-as.data.frame(output)
+colnames(output)<-c("begin","end","endprofit","maxprofit","maxdrawdown")
+
+
+
+
+
 
 
 
@@ -123,4 +161,3 @@ for(i in c(1:(length(y$date)-1))){
   
 }        
 sum(y$totalprofit)
-
