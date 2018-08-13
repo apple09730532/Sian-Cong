@@ -1,0 +1,126 @@
+library(readxl)
+HBF201810 <- read_excel("C:/Users/vtteam/Desktop/0809_0810_2492_2327.xlsx",sheet = "HBF20180809")
+for(i in c(1:(length(HBF201810$date)-1))){
+  if(HBF201810$Bp1[i]==0){
+    HBF201810$Bp1[i]=HBF201810$Bp1[i+1]
+    HBF201810$Bv1[i]=HBF201810$Bv1[i+1]
+    HBF201810$Sp1[i]=HBF201810$Sp1[i+1]
+    HBF201810$Sv1[i]=HBF201810$Sv1[i+1]
+  }
+}
+HBF201810<-HBF201810[HBF201810$Dp!=0&HBF201810$Bp1!=0,]
+LXF201810 <- read_excel("C:/Users/vtteam/Desktop/0809_0810_2492_2327.xlsx",sheet = "LXF20180809")
+for(i in c(1:(length(LXF201810$date)-1))){
+  if(LXF201810$Bp1[i]==0){
+    LXF201810$Bp1[i]=LXF201810$Bp1[i+1]
+    LXF201810$Bv1[i]=LXF201810$Bv1[i+1]
+    LXF201810$Sp1[i]=LXF201810$Sp1[i+1]
+    LXF201810$Sv1[i]=LXF201810$Sv1[i+1]
+  }
+}
+LXF201810<-LXF201810[LXF201810$Dp!=0&LXF201810$Bp1!=0,]
+
+x=rbind(HBF201810,LXF201810)
+HBF<-x[order(x$txTime),]
+LXF<-x[order(x$txTime),]
+for(i in c(5:length(HBF$date))){
+  if(HBF$Pid[i]=="LXFH8"){
+    HBF$Dp[i]=tail(HBF[1:i,]$Dp[HBF[1:i,]$Pid=="HBFH8"],1)
+    HBF$Dv[i]=tail(HBF[1:i,]$Dv[HBF[1:i,]$Pid=="HBFH8"],1)
+    HBF$Bp1[i]=tail(HBF[1:i,]$Bp1[HBF[1:i,]$Pid=="HBFH8"],1)
+    HBF$Bv1[i]=tail(HBF[1:i,]$Bv1[HBF[1:i,]$Pid=="HBFH8"],1)
+    HBF$Sp1[i]=tail(HBF[1:i,]$Sp1[HBF[1:i,]$Pid=="HBFH8"],1)
+    HBF$Sv1[i]=tail(HBF[1:i,]$Sv1[HBF[1:i,]$Pid=="HBFH8"],1)
+  }
+}
+HBF$Pid="HBFH8"
+for(i in c(1:length(LXF$date))){
+  if(LXF$Pid[i]=="HBFH8"){
+    LXF$Dp[i]=tail(LXF[1:i,]$Dp[LXF[1:i,]$Pid=="LXFH8"],1)
+    LXF$Dv[i]=tail(LXF[1:i,]$Dv[LXF[1:i,]$Pid=="LXFH8"],1)
+    LXF$Bp1[i]=tail(LXF[1:i,]$Bp1[LXF[1:i,]$Pid=="LXFH8"],1)
+    LXF$Bv1[i]=tail(LXF[1:i,]$Bv1[LXF[1:i,]$Pid=="LXFH8"],1)
+    LXF$Sp1[i]=tail(LXF[1:i,]$Sp1[LXF[1:i,]$Pid=="LXFH8"],1)
+    LXF$Sv1[i]=tail(LXF[1:i,]$Sv1[LXF[1:i,]$Pid=="LXFH8"],1)
+  }
+}
+LXF$Pid="LXFH8"
+LXF<-LXF[-c(1,2,3,4),]
+HBF<-HBF[-c(1,2,3,4),]
+colnames(LXF)<-c("date","txTime","LXF_Pid","LXF_Dp","LXF_Dv","LXF_Bp1","LXF_Bv1","LXF_Sp1","LXF_Sv1")
+colnames(HBF)<-c("date","txTime","HBF_Pid","HBF_Dp","HBF_Dv","HBF_Bp1","HBF_Bv1","HBF_Sp1","HBF_Sv1")
+LXF["LXF_midprice"]<-(LXF$LXF_Bp1+LXF$LXF_Sp1)/2
+HBF["HBF_midprice"]<-(HBF$HBF_Bp1+HBF$HBF_Sp1)/2
+LXF["LXF_Bpprofit"]<-0
+HBF["HBF_Bpprofit"]<-0
+LXF["LXF_Spprofit"]<-0
+HBF["HBF_Spprofit"]<-0
+sec=20000#毫秒 參數
+spread=0.4/100 #參數
+spread1=0.2/100
+for (i in c(1:length(LXF$date))){
+  if(length(LXF$LXF_midprice[LXF$txTime<(LXF$txTime[i]-sec)])!=0){
+    
+    
+    LXF$LXF_Bpprofit[i]<-LXF$LXF_Bp1[i]/tail(LXF$LXF_midprice[LXF$txTime<(LXF$txTime[i]-sec)],1)-1
+    HBF$HBF_Bpprofit[i]<-HBF$HBF_Bp1[i]/tail(HBF$HBF_midprice[HBF$txTime<(HBF$txTime[i]-sec)],1)-1
+    LXF$LXF_Spprofit[i]<-LXF$LXF_Sp1[i]/tail(LXF$LXF_midprice[LXF$txTime<(LXF$txTime[i]-sec)],1)-1
+    HBF$HBF_Spprofit[i]<-HBF$HBF_Sp1[i]/tail(HBF$HBF_midprice[HBF$txTime<(HBF$txTime[i]-sec)],1)-1
+  }
+}
+
+total=cbind(LXF,HBF)
+
+total["diff_Bpprofit"]<-LXF$LXF_Bpprofit-HBF$HBF_Spprofit
+total["diff_Spprofit"]<-LXF$LXF_Spprofit-HBF$HBF_Bpprofit
+
+total["sign"]<-0
+k=0
+for(i in c(2:length(total$date)))
+{
+  if(total$diff_Bpprofit[i]>spread&(k==0|k==-1)){
+    total$sign[i]=1
+    k=1
+  }
+  if(total$diff_Spprofit[i]>(-spread)&k==1)
+  {
+    total$sign[i]=1
+    k=1
+  }
+  if(total$diff_Spprofit[i]<(-spread)&(k==1|k==0))
+  {
+    total$sign[i]=-1
+    k=-1
+  }
+  if(total$diff_Bpprofit[i]<(spread)&k==-1)
+  {
+    total$sign[i]=(-1)
+    k=-1
+  }
+  
+}
+total["diffsign"]<-0
+for(i in c(2:length(total$date))){
+  total$diffsign[i]<-total$sign[i]-total$sign[i-1]
+}
+
+
+
+
+
+
+
+y=total[total$diffsign!=0,]
+y["totalprofit"]<-0
+for(i in c(1:(length(y$date)-1))){
+  
+  if(y$diffsign[i]>0){
+    y$totalprofit[i]=-(y$LXF_Sp1[i+1]/y$LXF_Bp1[i]-1)+(y$HBF_Bp1[i+1]/y$HBF_Sp1[i]-1)
+  }
+  if(y$diffsign[i]<0){
+    y$totalprofit[i]=(y$LXF_Bp1[i+1]/y$LXF_Sp1[i]-1)-(y$HBF_Sp1[i+1]/y$HBF_Bp1[i]-1)
+  } 
+  
+}        
+sum(y$totalprofit)
+
